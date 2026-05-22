@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import timetableService from "../../services/timetableService";
+import lecturerService from "../../services/lecturerService";
 
 const DAYS  = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 const SLOTS  = [
@@ -51,7 +52,67 @@ export function LecturerTimetable() {
     try {
       setLoading(true);
       const data = await timetableService.getLecturerTimetable();
-      setSchedule(Array.isArray(data) ? data : []);
+      const rawList = Array.isArray(data) ? data : [];
+      
+      // Get unique sectionIds
+      const uniqueSectionIds = [...new Set(rawList.map(item => item.courseSectionId || item.sectionId).filter(Boolean))];
+      
+      // Fetch rosters for these sections in parallel to get enrolledCount
+      const rosterMap = {};
+      try {
+        const rosters = await Promise.all(
+          uniqueSectionIds.map(async (id) => {
+            try {
+              const roster = await lecturerService.getClassRoster(id);
+              return { id, enrolledCount: roster?.enrolledCount || roster?.students?.length || 0 };
+            } catch (err) {
+              console.error(`Failed to fetch roster for section ${id}`, err);
+              return { id, enrolledCount: 0 };
+            }
+          })
+        );
+        rosters.forEach(r => {
+          rosterMap[r.id] = r.enrolledCount;
+        });
+      } catch (err) {
+        console.error("Error fetching class rosters", err);
+      }
+
+      // Map raw entries to timetable format
+      const formatted = rawList.map((sch) => {
+        let day = (sch.dayOfWeek || 1) - 1;
+        
+        let slot = 1;
+        const startTimeStr = String(sch.startTime || "07:30");
+        if (startTimeStr.startsWith("07")) slot = 1;
+        else if (startTimeStr.startsWith("10")) slot = 2;
+        else if (startTimeStr.startsWith("13")) slot = 3;
+        else if (startTimeStr.startsWith("15")) slot = 4;
+        
+        const isLab = String(sch.courseName || "").toLowerCase().includes("thực hành") || 
+                      String(sch.courseName || "").toLowerCase().includes("lab") ||
+                      String(sch.courseCode || "").toLowerCase().includes("lab");
+        
+        const color = isLab ? "#f5f3ff" : "#ede9fe";
+        const border = isLab ? "#7c3aed" : "#8b5cf6";
+
+        const sectionId = sch.courseSectionId || sch.sectionId;
+        const enrolledCount = rosterMap[sectionId] !== undefined ? rosterMap[sectionId] : (sch.enrolledCount || 0);
+
+        return {
+          ...sch,
+          day,
+          slot,
+          code: sch.courseSectionCode || sch.sectionCode || sch.courseCode,
+          name: sch.courseName,
+          room: sch.roomCode || sch.roomName || "N/A",
+          sv: enrolledCount,
+          color,
+          border
+        };
+      });
+      
+      setSchedule(formatted);
     } catch (err) {
       setSchedule([]);
       const message = err?.data?.message || err?.message || "Không thể tải thời khóa biểu.";
@@ -60,6 +121,7 @@ export function LecturerTimetable() {
       setLoading(false);
     }
   }, [showToast]);
+
 
   function getCell(day, slot) {
     return schedule.find((s) => s.day === day && s.slot === slot);

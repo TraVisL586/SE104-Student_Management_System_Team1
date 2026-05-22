@@ -1,23 +1,22 @@
-import { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Award, Download, TrendingUp, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Award, Download, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import studentService from "../../services/studentService";
+import courseRegistrationService from "../../services/courseRegistrationService";
 
 function gradeColor(g) {
   if (g === null || g === undefined) return "#94a3b8";
-  if (g >= 8.5) return "#10b981";
-  if (g >= 7.0) return "#2563eb";
-  if (g >= 5.5) return "#f59e0b";
+  if (g >= 8) return "#10b981";
+  if (g >= 6.0) return "#2563eb";
+  if (g >= 5.0) return "#f59e0b";
   return "#ef4444";
 }
 
 function gradeLabel(g) {
   if (g === null || g === undefined) return "Chưa có";
-  if (g >= 8.5) return "Giỏi";
-  if (g >= 7.0) return "Khá";
-  if (g >= 5.5) return "TB Khá";
-  if (g >= 4.0) return "Trung bình";
+  if (g >= 8) return "Giỏi";
+  if (g >= 6.0) return "Khá";
+  if (g >= 5.0) return "Trung bình";
   return "Không đạt";
 }
 
@@ -33,10 +32,27 @@ export function Grades() {
   const fetchGrades = async () => {
     try {
       setLoading(true);
-      const data = await studentService.getMyGrades();
+      const [gradesData, registrationsData] = await Promise.all([
+        studentService.getMyGrades(),
+        courseRegistrationService.getMyRegistrations().catch(() => [])
+      ]);
+
       // Filter only published grades
-      const publishedGrades = data.filter(g => g.status === "PUBLISHED" || g.isPublished || g.gradeStatus === "PUBLISHED");
-      setGrades(publishedGrades || []);
+      const publishedGrades = gradesData.filter(g => g.status === "PUBLISHED" || g.isPublished || g.gradeStatus === "PUBLISHED");
+
+      // Map each grade with semester info from registrations
+      const mappedGrades = publishedGrades.map(g => {
+        const reg = Array.isArray(registrationsData) ? registrationsData.find(r => r.id === g.enrollmentId) : null;
+        return {
+          ...g,
+          credits: reg ? reg.credits : (g.credits || 3),
+          semesterId: reg ? reg.semesterId : null,
+          semesterCode: reg ? reg.semesterCode : "N/A",
+          semesterName: reg ? reg.semesterName : "Chưa rõ học kỳ"
+        };
+      });
+
+      setGrades(mappedGrades || []);
     } catch (error) {
       showToast("error", "Lỗi", "Không thể tải bảng điểm");
     } finally {
@@ -51,7 +67,7 @@ export function Grades() {
   let failedCourses = 0;
 
   grades.forEach(g => {
-    const credits = g.credits || 3; // Default 3 credits if not provided
+    const credits = g.credits || 3;
     totalCredits += credits;
     if (g.totalScore !== null && g.totalScore !== undefined) {
       totalScorePoints += (g.totalScore * credits);
@@ -62,15 +78,42 @@ export function Grades() {
 
   const cumulativeGPA = totalCredits > 0 ? (totalScorePoints / totalCredits) : 0;
 
-  // Chart data (mocking semesters for now since semester info isn't in GradeResponse)
-  const GPA_CHART = [
-    { ky: "HK1/23", gpa: 7.2 },
-    { ky: "HK2/23", gpa: 7.5 },
-    { ky: "HK1/24", gpa: 7.8 },
-    { ky: "HK2/24", gpa: 8.1 },
-    { ky: "HK1/25", gpa: 7.9 },
-    { ky: "Hiện tại", gpa: parseFloat(cumulativeGPA.toFixed(2)) || 0 },
-  ];
+  // Group grades by semester
+  const gradesBySemester = useMemo(() => {
+    const groups = {};
+    grades.forEach(g => {
+      const semKey = g.semesterId || "unknown";
+      if (!groups[semKey]) {
+        groups[semKey] = {
+          semesterId: g.semesterId,
+          semesterCode: g.semesterCode,
+          semesterName: g.semesterName || "Chưa rõ học kỳ",
+          items: [],
+          totalCredits: 0,
+          totalScorePoints: 0,
+        };
+      }
+      groups[semKey].items.push(g);
+      const credits = g.credits || 3;
+      groups[semKey].totalCredits += credits;
+      if (g.totalScore !== null && g.totalScore !== undefined) {
+        groups[semKey].totalScorePoints += (g.totalScore * credits);
+      }
+    });
+
+    // Calculate GPA for each semester and convert to array
+    return Object.values(groups).map(group => {
+      const gpa = group.totalCredits > 0 ? (group.totalScorePoints / group.totalCredits) : 0;
+      return {
+        ...group,
+        gpa: parseFloat(gpa.toFixed(2)),
+      };
+    }).sort((a, b) => {
+      if (a.semesterId === null || a.semesterId === undefined) return 1;
+      if (b.semesterId === null || b.semesterId === undefined) return -1;
+      return a.semesterId - b.semesterId;
+    });
+  }, [grades]);
 
   return (
     <div className="space-y-5">
@@ -98,10 +141,10 @@ export function Grades() {
           {/* Summary cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "GPA Tích lũy",    value: cumulativeGPA.toFixed(2), sub: `Xếp loại: ${gradeLabel(cumulativeGPA)}`,   color: "#2563eb", bg: "#dbeafe" },
-              { label: "Tín chỉ Tích lũy",value: `${totalCredits}/130`,    sub: `${Math.round((totalCredits/130)*100)}% chương trình`, color: "#10b981", bg: "#d1fae5" },
-              { label: "Môn đạt",          value: passedCourses.toString(),                     sub: `Tổng ${grades.length} môn đã học`, color: "#8b5cf6", bg: "#ede9fe" },
-              { label: "Môn chưa đạt",     value: failedCourses.toString(),                      sub: failedCourses > 0 ? "Cần học lại" : "Rất tốt",       color: "#f59e0b", bg: "#fef3c7" },
+              { label: "GPA Tích lũy", value: cumulativeGPA.toFixed(2), sub: `Xếp loại: ${gradeLabel(cumulativeGPA)}`, color: "#2563eb", bg: "#dbeafe" },
+              { label: "Tín chỉ Tích lũy", value: `${totalCredits}/130`, sub: `${Math.round((totalCredits / 130) * 100)}% chương trình`, color: "#10b981", bg: "#d1fae5" },
+              { label: "Môn đạt", value: passedCourses.toString(), sub: `Tổng ${grades.length} môn đã học`, color: "#8b5cf6", bg: "#ede9fe" },
+              { label: "Môn chưa đạt", value: failedCourses.toString(), sub: failedCourses > 0 ? "Cần học lại" : "Rất tốt", color: "#f59e0b", bg: "#fef3c7" },
             ].map(({ label, value, sub, color, bg }) => (
               <div key={label} className="rounded-2xl p-4" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
@@ -114,69 +157,102 @@ export function Grades() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* GPA Chart */}
-            <div className="rounded-2xl p-5" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp size={16} color="#2563eb" />
-                <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b" }}>Biểu đồ GPA</p>
+          {/* Semester details list */}
+          <div className="space-y-6">
+            {gradesBySemester.length === 0 ? (
+              <div className="rounded-2xl p-6 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                <p style={{ fontSize: "0.85rem", color: "#64748b" }}>Chưa có điểm nào được công bố.</p>
               </div>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={GPA_CHART} barSize={18}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="ky" tick={{ fontSize: 10, fill: "#94a3b8" }} />
-                  <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: "#94a3b8" }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 10, fontSize: "0.78rem" }}
-                    formatter={(v) => [`${v}`, "GPA"]}
-                  />
-                  <Bar dataKey="gpa" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            ) : (
+              gradesBySemester.map((sem) => {
+                let passedCount = 0;
+                let failedCount = 0;
+                sem.items.forEach(c => {
+                  if (c.totalScore !== null && c.totalScore !== undefined) {
+                    if (c.totalScore >= 4.0) passedCount++;
+                    else failedCount++;
+                  }
+                });
 
-            {/* Semester detail */}
-            <div className="lg:col-span-2 rounded-2xl" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
-                <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Chi tiết các môn học (Đã công bố)</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr style={{ backgroundColor: "#f8fafc" }}>
-                      {["Mã MH", "Tên môn học", "Quá trình (20%)", "Giữa kỳ (30%)", "Cuối kỳ (50%)", "Tổng kết", "Xếp loại"].map((h) => (
-                        <th key={h} className="text-left px-4 py-2.5" style={{ fontSize: "0.62rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grades.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" className="text-center py-6 text-sm text-slate-500">Chưa có điểm nào được công bố.</td>
-                      </tr>
-                    ) : grades.map((c) => (
-                      <tr key={c.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                        <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#2563eb", fontWeight: 600 }}>{c.courseCode}</td>
-                        <td className="px-4 py-3" style={{ fontSize: "0.82rem", color: "#1e293b" }}>{c.courseName}</td>
-                        <td className="px-4 py-3" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.processScore) }}>{c.processScore ?? "—"}</td>
-                        <td className="px-4 py-3" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.midtermScore) }}>{c.midtermScore ?? "—"}</td>
-                        <td className="px-4 py-3" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.finalScore) }}>{c.finalScore ?? "—"}</td>
-                        <td className="px-4 py-3" style={{ fontSize: "0.95rem", fontWeight: 700, color: gradeColor(c.totalScore) }}>{c.totalScore ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          <span style={{
-                            fontSize: "0.7rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6,
-                            backgroundColor: c.totalScore !== null ? `${gradeColor(c.totalScore)}18` : "#f1f5f9",
-                            color: gradeColor(c.totalScore),
-                          }}>
-                            {gradeLabel(c.totalScore)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                return (
+                  <div key={sem.semesterId || "unknown"} className="rounded-2xl overflow-hidden shadow-sm" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 py-4 flex-wrap gap-2" style={{ borderBottom: "1px solid #f1f5f9", backgroundColor: "#f8fafc" }}>
+                      <div>
+                        <h3 style={{ fontWeight: 700, fontSize: "1rem", color: "#1a3461" }}>
+                          {sem.semesterName}
+                        </h3>
+                        {sem.semesterCode && sem.semesterCode !== "N/A" && (
+                          <p style={{ fontSize: "0.72rem", color: "#64748b", marginTop: 1 }}>
+                            Mã học kỳ: {sem.semesterCode}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: "0.75rem", fontWeight: 600, padding: "4px 10px", borderRadius: 8, backgroundColor: `${gradeColor(sem.gpa)}15`, color: gradeColor(sem.gpa), border: `1px solid ${gradeColor(sem.gpa)}30` }}>
+                          GPA Kỳ: {sem.gpa.toFixed(2)} ({gradeLabel(sem.gpa)})
+                        </span>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 600, padding: "4px 10px", borderRadius: 8, backgroundColor: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" }}>
+                          Tín chỉ: {sem.totalCredits} TC
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr style={{ backgroundColor: "#fafbfc", borderBottom: "1px solid #f1f5f9" }}>
+                            {["Mã MH", "Tên môn học", "Tín chỉ", "Quá trình (20%)", "Giữa kỳ (30%)", "Cuối kỳ (50%)", "Tổng kết", "Xếp loại"].map((h) => (
+                              <th key={h} className="text-left px-5 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sem.items.map((c) => (
+                            <tr key={c.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                              <td className="px-5 py-3.5" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#2563eb", fontWeight: 600 }}>{c.courseCode}</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.82rem", color: "#1e293b", fontWeight: 500 }}>{c.courseName}</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.8rem", color: "#475569" }}>{c.credits} TC</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.processScore) }}>{c.processScore ?? "—"}</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.midtermScore) }}>{c.midtermScore ?? "—"}</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.85rem", fontWeight: 600, color: gradeColor(c.finalScore) }}>{c.finalScore ?? "—"}</td>
+                              <td className="px-5 py-3.5" style={{ fontSize: "0.95rem", fontWeight: 700, color: gradeColor(c.totalScore) }}>{c.totalScore ?? "—"}</td>
+                              <td className="px-5 py-3.5">
+                                <span style={{
+                                  fontSize: "0.7rem", fontWeight: 600, padding: "2.5px 8px", borderRadius: 6,
+                                  backgroundColor: c.totalScore !== null ? `${gradeColor(c.totalScore)}18` : "#f1f5f9",
+                                  color: gradeColor(c.totalScore),
+                                }}>
+                                  {gradeLabel(c.totalScore)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Summary Footer */}
+                    <div className="flex items-center justify-between px-5 py-3.5 flex-wrap gap-4" style={{ backgroundColor: "#fcfdfe", borderTop: "1px solid #f1f5f9" }}>
+                      <div className="flex gap-4 text-xs text-slate-500">
+                        <span>Tổng số môn: <strong style={{ color: "#334155" }}>{sem.items.length}</strong></span>
+                        <span>Môn đạt: <strong style={{ color: "#10b981" }}>{passedCount}</strong></span>
+                        {failedCount > 0 && <span>Môn chưa đạt: <strong style={{ color: "#ef4444" }}>{failedCount}</strong></span>}
+                      </div>
+                      <div className="flex gap-6 items-center flex-wrap">
+                        <span style={{ fontSize: "0.8rem", color: "#475569" }}>
+                          Tích lũy học kỳ: <strong style={{ color: "#1e293b", fontSize: "0.88rem" }}>{sem.totalCredits} TC</strong>
+                        </span>
+                        <span style={{ fontSize: "0.8rem", color: "#475569" }}>
+                          GPA Học kỳ: <strong style={{ color: gradeColor(sem.gpa), fontSize: "0.98rem" }}>{sem.gpa.toFixed(2)}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </>
       )}

@@ -6,7 +6,7 @@ export async function getMyProfile() {
 
 export async function changePassword(currentPassword, newPassword) {
   return apiClient.put('/api/student/change-password', {
-    currentPassword,
+    oldPassword: currentPassword,
     newPassword,
   });
 }
@@ -33,6 +33,10 @@ export async function markNotificationAsRead(notificationId) {
   return apiClient.patch(`/api/student/notifications/${notificationId}/read`);
 }
 
+export async function markAllNotificationsAsRead() {
+  return apiClient.patch('/api/student/notifications/read-all');
+}
+
 export default {
   getMyProfile,
   changePassword,
@@ -41,4 +45,5 @@ export default {
   getMyAttendance,
   getMyNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
 };

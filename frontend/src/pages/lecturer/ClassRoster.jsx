@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Download, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import lecturerService from "../../services/lecturerService";
 
@@ -10,10 +11,16 @@ const STATUS = {
 };
 
 export function ClassRoster() {
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
   const [classes, setClasses] = useState([]);
   const [selected, setSelected] = useState(null);
   const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParam);
+
+  useEffect(() => {
+    setSearch(searchParam);
+  }, [searchParam]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState(false);
   const { showToast } = useToast();

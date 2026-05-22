@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, BookOpen, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import courseRegistrationService from "../../services/courseRegistrationService";
 
@@ -9,7 +10,10 @@ const SEARCH_DEBOUNCE_MS = 400;
 const ACTIVE_STATUSES = new Set(["ENROLLED", "WAITLISTED"]);
 
 export function Registrations() {
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
+  const [search, setSearch] = useState(searchParam);
+  const initialSearchRef = useRef(searchParam);
   const [cart, setCart] = useState([]);
   const [khoa, setKhoa] = useState("Tất cả");
   const [openSections, setOpenSections] = useState([]);
@@ -101,10 +105,14 @@ export function Registrations() {
   }, []);
 
   useEffect(() => {
+    setSearch(searchParam);
+  }, [searchParam]);
+
+  useEffect(() => {
     let active = true;
     const init = async () => {
       setLoading(true);
-      await Promise.all([loadRegistrations(), loadSections("")]);
+      await Promise.all([loadRegistrations(), loadSections(initialSearchRef.current)]);
       if (active) setLoading(false);
     };
     init();

@@ -51,7 +51,47 @@ export function StudentTimetable() {
     try {
       setLoading(true);
       const data = await timetableService.getStudentTimetable();
-      setSchedule(Array.isArray(data) ? data : []);
+      const formatted = (Array.isArray(data) ? data : []).map((sch) => {
+        let day = (sch.dayOfWeek || 1) - 1;
+        
+        let slot = 1;
+        const startTimeStr = String(sch.startTime || "07:30");
+        if (startTimeStr.startsWith("07")) slot = 1;
+        else if (startTimeStr.startsWith("10")) slot = 2;
+        else if (startTimeStr.startsWith("13")) slot = 3;
+        else if (startTimeStr.startsWith("15")) slot = 4;
+        
+        const nameLower = String(sch.courseName || "").toLowerCase();
+        const codeLower = String(sch.courseCode || "").toLowerCase();
+        
+        let color = "#dbeafe";
+        let border = "#2563eb";
+        let type = "theory";
+        
+        if (nameLower.includes("thực hành") || nameLower.includes("lab") || codeLower.includes("lab")) {
+          color = "#ede9fe";
+          border = "#8b5cf6";
+          type = "lab";
+        } else if (nameLower.includes("tiếng anh") || nameLower.includes("anh văn") || nameLower.includes("english") || codeLower.startsWith("eng")) {
+          color = "#d1fae5";
+          border = "#10b981";
+          type = "language";
+        }
+
+        return {
+          ...sch,
+          day,
+          slot,
+          code: sch.courseCode || sch.courseSectionCode,
+          name: sch.courseName,
+          room: sch.roomCode || sch.roomName || "N/A",
+          gv: sch.lecturerName || "N/A",
+          color,
+          border,
+          type
+        };
+      });
+      setSchedule(formatted);
     } catch (err) {
       setSchedule([]);
       const message = err?.data?.message || err?.message || "Không thể tải thời khóa biểu.";

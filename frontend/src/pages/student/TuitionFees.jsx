@@ -16,6 +16,7 @@ export function TuitionFees() {
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
+  const [confirming, setConfirming] = useState(false);
   const [method, setMethod] = useState("MOMO");
   const { showToast } = useToast();
 
@@ -46,6 +47,10 @@ export function TuitionFees() {
 
   async function confirmPayment() {
     try {
+      setConfirming(true);
+      // Simulate connecting to payment gateway for 1.5s
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       const amountToPay = paying.totalAmount - paying.paidAmount;
       const response = await tuitionService.createPayment(paying.id, amountToPay, method);
       
@@ -57,6 +62,8 @@ export function TuitionFees() {
       fetchFees();
     } catch (error) {
       showToast("error", "Lỗi", error.message || "Không thể thanh toán");
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -200,11 +207,13 @@ export function TuitionFees() {
               ].map(({ key, label, color, desc }) => (
                 <button
                   key={key}
+                  disabled={confirming}
                   onClick={() => setMethod(key)}
                   style={{
                     padding: "14px 12px", borderRadius: 12, cursor: "pointer", textAlign: "left",
                     border: `2px solid ${method === key ? color : "#e2e8f0"}`,
                     backgroundColor: method === key ? `${color}10` : "#fff",
+                    opacity: confirming ? 0.6 : 1,
                   }}
                 >
                   <p style={{ fontWeight: 700, fontSize: "0.9rem", color }}>{label}</p>
@@ -215,18 +224,27 @@ export function TuitionFees() {
 
             <div className="flex gap-3">
               <button
+                disabled={confirming}
                 onClick={() => setPaying(null)}
                 className="flex-1 py-2.5 rounded-xl"
-                style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.85rem", color: "#475569" }}
+                style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.85rem", color: "#475569", opacity: confirming ? 0.5 : 1 }}
               >
                 Hủy
               </button>
               <button
+                disabled={confirming}
                 onClick={confirmPayment}
-                className="flex-1 py-2.5 rounded-xl"
-                style={{ backgroundColor: "#1a3461", color: "white", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: 700 }}
+                className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2"
+                style={{ backgroundColor: "#1a3461", color: "white", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: 700, opacity: confirming ? 0.8 : 1 }}
               >
-                Thanh toán
+                {confirming ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Thanh toán"
+                )}
               </button>
             </div>
           </div>

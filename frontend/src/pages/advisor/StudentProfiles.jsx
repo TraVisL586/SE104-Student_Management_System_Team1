@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, UserCheck, Award, FileText, AlertTriangle, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import advisorService from "../../services/advisorService";
 
@@ -13,8 +14,14 @@ const STATUS_CFG = {
 };
 
 export function StudentProfiles() {
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
   const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParam);
+
+  useEffect(() => {
+    setSearch(searchParam);
+  }, [searchParam]);
   const [selectedId, setSelectedId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loadingStudents, setLoadingStudents] = useState(true);
