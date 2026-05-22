@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, AlertTriangle, CheckCircle2, Clock, Download, Loader2, ArrowLeft, QrCode, Lock, Smartphone } from "lucide-react";
+import { CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, ArrowLeft, QrCode, Lock, Smartphone } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import tuitionService from "../../services/tuitionService";
 
@@ -123,9 +123,6 @@ export function TuitionFees() {
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
           <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Chi tiết học phí</p>
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ fontSize: "0.75rem", color: "#475569", border: "1px solid #e2e8f0", background: "none", cursor: "pointer" }}>
-            <Download size={13} /> Xuất PDF
-          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: 640 }}>
