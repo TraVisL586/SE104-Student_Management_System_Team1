@@ -26,7 +26,8 @@ function TabsList({ className, ...props }) {
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-xl p-[3px]",
+        "inline-flex h-11 w-full items-center justify-center rounded-xl p-1",
+        "bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/50",
         className,
       )}
       {...props}
@@ -43,14 +44,15 @@ function TabsTrigger({ className, ...props }) {
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all outline-none",
-        "focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
-        // Trạng thái Active
-        "data-[state=active]:bg-card data-[state=active]:text-foreground shadow-sm",
-        // Dark mode adjustments
-        "dark:data-[state=active]:bg-input/30 dark:data-[state=active]:border-input",
-        "text-foreground dark:text-muted-foreground dark:data-[state=active]:text-foreground",
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-200 outline-none",
+        "focus-visible:ring-2 focus-visible:ring-indigo-500/50 disabled:pointer-events-none disabled:opacity-50",
+        // Inactive states
+        "text-slate-600 hover:text-slate-900 hover:bg-slate-200/20 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/30",
+        // Active states - Light mode
+        "data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50",
+        // Active states - Dark mode
+        "dark:data-[state=active]:bg-indigo-600 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-md dark:data-[state=active]:border-indigo-500",
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
         className,
       )}
       {...props}

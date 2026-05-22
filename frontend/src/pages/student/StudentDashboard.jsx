@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   BookOpen, Calendar, Award, CreditCard, FileText, AlertTriangle,
-  TrendingUp, Clock, ChevronRight, Loader2,
+  TrendingUp, Clock, ChevronRight, Loader2, Key,
 } from "lucide-react";
 import studentService from "../../services/studentService";
 import timetableService from "../../services/timetableService";
@@ -72,6 +72,16 @@ export function StudentDashboard() {
     ? [{ ky: "Tích lũy", gpa: parseFloat(cumulativeGPA.toFixed(2)) }]
     : [{ ky: "—", gpa: 0 }];
 
+  const mapDayOfWeek = (dayNum) => {
+    const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    return days[(dayNum || 1) - 1] || "Thứ 2";
+  };
+
+  const mapTime = (timeStr) => {
+    if (!timeStr) return "";
+    return timeStr.substring(0, 5);
+  };
+
   // Enrolled courses from timetable
   const uniqueCourses = [];
   const seenCourses = new Set();
@@ -83,8 +93,8 @@ export function StudentDashboard() {
         code: item.courseCode || item.code || "",
         name: item.courseName || item.name || "",
         tc: item.credits || 3,
-        lich: item.dayOfWeek ? `${item.dayOfWeek} ${item.startTime || ""}` : item.time || "",
-        room: item.room || "—",
+        lich: item.dayOfWeek ? `${mapDayOfWeek(item.dayOfWeek)} ${mapTime(item.startTime)}` : item.time || "",
+        room: item.roomCode || item.roomName || item.room || "—",
       });
     }
   });
@@ -95,10 +105,12 @@ export function StudentDashboard() {
 
   // Upcoming from timetable (first 3)
   const upcoming = timetable.slice(0, 3).map(item => ({
-    time: item.dayOfWeek ? `${item.dayOfWeek} ${item.startTime || ""}` : item.time || "",
+    time: item.dayOfWeek ? `${mapDayOfWeek(item.dayOfWeek)} ${mapTime(item.startTime)}` : item.time || "",
     mon: item.courseName || item.name || "",
-    room: item.room || "—",
-    type: item.type === "LAB" || item.type === "lab" ? "lab" : "lecture",
+    room: item.roomCode || item.roomName || item.room || "—",
+    type: String(item.courseName || "").toLowerCase().includes("thực hành") || 
+          String(item.courseName || "").toLowerCase().includes("lab") ||
+          String(item.courseCode || "").toLowerCase().includes("lab") ? "lab" : "lecture",
   }));
 
   const gradeLabel = (gpa) => {
@@ -146,7 +158,16 @@ export function StudentDashboard() {
               <Icon size={14} /> {label}
             </button>
           ))}
-          <ChangePasswordModal />
+          <ChangePasswordModal
+            trigger={
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "white", border: "none", cursor: "pointer", fontSize: "0.8rem", fontWeight: 500 }}
+              >
+                <Key size={14} /> Đổi mật khẩu
+              </button>
+            }
+          />
         </div>
       </div>
 

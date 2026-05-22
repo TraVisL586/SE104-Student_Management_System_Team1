@@ -1,13 +1,20 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Trash2, BookMarked, Users, CheckCircle2, XCircle, Loader2, Edit2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import adminSchedulingService from "../../services/adminSchedulingService";
 
 export function CourseSections() {
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
   const [sections, setSections] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParam);
+
+  useEffect(() => {
+    setSearch(searchParam);
+  }, [searchParam]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);

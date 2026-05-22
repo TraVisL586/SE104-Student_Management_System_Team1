@@ -14,7 +14,7 @@ import { Label } from './ui/label';
 import studentService from '../services/studentService';
 import { useToast } from '../context/ToastContext';
 
-export function ChangePasswordModal() {
+export function ChangePasswordModal({ trigger }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -80,9 +80,11 @@ export function ChangePasswordModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Change Password
-        </Button>
+        {trigger || (
+          <Button variant="outline" size="sm">
+            Change Password
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

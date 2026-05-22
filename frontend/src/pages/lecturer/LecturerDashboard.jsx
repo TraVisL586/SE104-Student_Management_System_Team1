@@ -5,14 +5,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Users, Award, CheckSquare, Calendar, ChevronRight, Clock, AlertCircle, Loader2 } from "lucide-react";
 import lecturerService from "../../services/lecturerService";
 
-const PERF_DATA = [
-  { range: "≥ 8.5", count: 31 },
-  { range: "7–8.4", count: 52 },
-  { range: "5.5–7", count: 38 },
-  { range: "< 5.5", count: 16 },
-];
-
 const PERF_COLORS = ["#10b981", "#2563eb", "#f59e0b", "#ef4444"];
+
+const mapDayOfWeek = (dayNum) => {
+  const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+  return days[(dayNum || 1) - 1] || "Thứ 2";
+};
+
+const mapTime = (timeStr) => {
+  if (!timeStr) return "";
+  return timeStr.substring(0, 5);
+};
 
 export function LecturerDashboard() {
   const { user } = useRole();
@@ -20,6 +23,12 @@ export function LecturerDashboard() {
   const [classes, setClasses] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [perfData, setPerfData] = useState([
+    { range: "≥ 8.5", count: 0 },
+    { range: "7–8.4", count: 0 },
+    { range: "5.5–7", count: 0 },
+    { range: "< 5.5", count: 0 },
+  ]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -34,19 +43,84 @@ export function LecturerDashboard() {
       const uniqueClasses = [];
       const seen = new Set();
       ttData.forEach(item => {
-        if (!seen.has(item.sectionId)) {
-          seen.add(item.sectionId);
+        const sectId = item.courseSectionId || item.sectionId;
+        if (sectId && !seen.has(sectId)) {
+          seen.add(sectId);
           uniqueClasses.push({
-            id: item.sectionId,
-            code: item.sectionCode || item.courseCode,
+            id: sectId,
+            code: item.courseSectionCode || item.sectionCode || item.courseCode,
             name: item.courseName,
-            students: item.enrolledCount || 0,
-            room: item.room,
-            lich: `${item.dayOfWeek} ${item.startTime}`
+            students: 0,
+            room: item.roomCode || item.roomName || item.room || "—",
+            lich: item.dayOfWeek ? `${mapDayOfWeek(item.dayOfWeek)} ${mapTime(item.startTime)}` : "—"
           });
         }
       });
       setClasses(uniqueClasses);
+
+      // Fetch grades for all classes in parallel to calculate score distribution
+      const gradesPromises = uniqueClasses.map(cls =>
+        lecturerService.getGrades(cls.id)
+          .then(grades => ({ classId: cls.id, grades }))
+          .catch(err => {
+            console.error(`Failed to fetch grades for class ${cls.id}:`, err);
+            return { classId: cls.id, grades: [] };
+          })
+      );
+      const allGradesResults = await Promise.all(gradesPromises);
+
+      // Update student count in classes using grades length
+      const updatedClasses = uniqueClasses.map(cls => {
+        const gradeRes = allGradesResults.find(r => r.classId === cls.id);
+        return {
+          ...cls,
+          students: gradeRes ? gradeRes.grades.length : 0
+        };
+      });
+      setClasses(updatedClasses);
+
+      let g85 = 0;
+      let g70 = 0;
+      let g55 = 0;
+      let gUnder55 = 0;
+
+      allGradesResults.forEach(result => {
+        const grades = result.grades;
+        if (Array.isArray(grades)) {
+          grades.forEach(g => {
+            let final = null;
+            if (g.totalScore !== undefined && g.totalScore !== null) {
+              final = parseFloat(g.totalScore);
+            } else if (g.processScore !== null && g.midtermScore !== null && g.finalScore !== null) {
+              const p = parseFloat(g.processScore);
+              const m = parseFloat(g.midtermScore);
+              const f = parseFloat(g.finalScore);
+              if (!isNaN(p) && !isNaN(m) && !isNaN(f)) {
+                final = p * 0.2 + m * 0.3 + f * 0.5;
+              }
+            }
+
+            if (final !== null && !isNaN(final)) {
+              if (final >= 8.5) {
+                g85++;
+              } else if (final >= 7.0) {
+                g70++;
+              } else if (final >= 5.5) {
+                g55++;
+              } else {
+                gUnder55++;
+              }
+            }
+          });
+        }
+      });
+
+      setPerfData([
+        { range: "≥ 8.5", count: g85 },
+        { range: "7–8.4", count: g70 },
+        { range: "5.5–7", count: g55 },
+        { range: "< 5.5", count: gUnder55 },
+      ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -121,13 +195,13 @@ export function LecturerDashboard() {
               <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b", marginBottom: 2 }}>Phân phối điểm SV</p>
               <p style={{ fontSize: "0.72rem", color: "#64748b", marginBottom: 14 }}>Tổng hợp tất cả lớp · Thang 10.0</p>
               <ResponsiveContainer width="100%" height={170}>
-                <BarChart data={PERF_DATA} barSize={28}>
+                <BarChart data={perfData} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="range" tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <Tooltip contentStyle={{ borderRadius: 10, fontSize: "0.78rem" }} formatter={(v) => [`${v} SV`, "Số lượng"]} />
                   <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                    {PERF_DATA.map((_, i) => (
+                    {perfData.map((_, i) => (
                       <Cell key={i} fill={PERF_COLORS[i]} />
                     ))}
                   </Bar>
@@ -185,8 +259,8 @@ export function LecturerDashboard() {
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }}>
                   <div style={{ width: 8, height: 8, borderRadius: 9999, backgroundColor: "#8b5cf6", flexShrink: 0 }} />
                   <div>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#8b5cf6" }}>{item.dayOfWeek} {item.startTime}</p>
-                    <p style={{ fontSize: "0.75rem", color: "#334155", marginTop: 2 }}>{item.courseCode} · {item.room}</p>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#8b5cf6" }}>{item.dayOfWeek ? `${mapDayOfWeek(item.dayOfWeek)} ${mapTime(item.startTime)}` : "—"}</p>
+                    <p style={{ fontSize: "0.75rem", color: "#334155", marginTop: 2 }}>{(item.courseCode || item.courseSectionCode)} · {(item.roomCode || item.roomName || item.room || "—")}</p>
                   </div>
                 </div>
               ))}

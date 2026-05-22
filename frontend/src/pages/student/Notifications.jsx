@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { Loader2, Bell, Check, Info } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import { useRole } from "../../context/RoleContext";
 import studentService from "../../services/studentService";
 
 export function Notifications() {
+  const { user } = useRole();
+  const role = user?.role || "PUBLIC";
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterUnread, setFilterUnread] = useState(false);
@@ -11,9 +14,14 @@ export function Notifications() {
 
   useEffect(() => {
     fetchNotifications();
-  }, [filterUnread]);
+  }, [filterUnread, role]);
 
   const fetchNotifications = async () => {
+    if (role !== "STUDENT") {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await studentService.getMyNotifications(filterUnread ? true : undefined);
