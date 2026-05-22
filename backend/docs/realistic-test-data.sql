@@ -3,6 +3,12 @@
 -- This script deletes existing application data and recreates a realistic data set.
 -- Total user accounts: 200
 -- Password for every account in this file: admin123456
+--
+-- Account samples:
+-- admin / admin123456
+-- student001 / admin123456
+-- lecturer001 / admin123456
+-- advisor001 / admin123456
 
 BEGIN;
 
@@ -41,8 +47,7 @@ VALUES
     ('ADMIN', 'System admin', now()),
     ('STUDENT', 'Student role', now()),
     ('LECTURER', 'Lecturer role', now()),
-    ('ACADEMIC_ADVISOR', 'Academic advisor role', now())
-ON CONFLICT (name) DO NOTHING;
+    ('ACADEMIC_ADVISOR', 'Academic advisor role', now());
 
 INSERT INTO public.permissions (name, description)
 VALUES
@@ -50,15 +55,13 @@ VALUES
     ('CREATE_STUDENT', 'Create student profile'),
     ('UPDATE_STUDENT', 'Update student profile'),
     ('DELETE_STUDENT', 'Deactivate student profile'),
-    ('CHANGE_PASSWORD', 'Change account password')
-ON CONFLICT (name) DO NOTHING;
+    ('CHANGE_PASSWORD', 'Change account password');
 
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM public.roles r
 CROSS JOIN public.permissions p
-WHERE r.name = 'ADMIN'
-ON CONFLICT DO NOTHING;
+WHERE r.name = 'ADMIN';
 
 -- BCrypt hash for password: admin123456
 INSERT INTO public.users (username, email, password_hash, full_name, is_active, created_at, updated_at)
@@ -76,8 +79,7 @@ INSERT INTO public.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM public.users u
 JOIN public.roles r ON r.name = 'ADMIN'
-WHERE u.username = 'admin'
-ON CONFLICT DO NOTHING;
+WHERE u.username = 'admin';
 
 INSERT INTO public.departments (code, name, description, created_at)
 VALUES
@@ -85,8 +87,7 @@ VALUES
     ('IS', 'Khoa He thong thong tin', 'Dao tao he thong thong tin va phan tich du lieu', now()),
     ('CS', 'Khoa Khoa hoc may tinh', 'Dao tao nen tang khoa hoc may tinh va tri tue nhan tao', now()),
     ('NT', 'Khoa Mang may tinh va Truyen thong', 'Dao tao mang may tinh, dien toan dam may va he thong phan tan', now()),
-    ('AT', 'Khoa An toan thong tin', 'Dao tao bao mat he thong va an toan ung dung', now())
-ON CONFLICT (code) DO NOTHING;
+    ('AT', 'Khoa An toan thong tin', 'Dao tao bao mat he thong va an toan ung dung', now());
 
 INSERT INTO public.users (username, email, password_hash, full_name, is_active, created_at, updated_at)
 SELECT
@@ -144,22 +145,19 @@ INSERT INTO public.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM public.users u
 JOIN public.roles r ON r.name = 'STUDENT'
-WHERE u.username LIKE 'student%'
-ON CONFLICT DO NOTHING;
+WHERE u.username LIKE 'student%';
 
 INSERT INTO public.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM public.users u
 JOIN public.roles r ON r.name = 'LECTURER'
-WHERE u.username LIKE 'lecturer%'
-ON CONFLICT DO NOTHING;
+WHERE u.username LIKE 'lecturer%';
 
 INSERT INTO public.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM public.users u
 JOIN public.roles r ON r.name = 'ACADEMIC_ADVISOR'
-WHERE u.username LIKE 'advisor%'
-ON CONFLICT DO NOTHING;
+WHERE u.username LIKE 'advisor%';
 
 INSERT INTO public.students (user_id, student_code, full_name, email, phone, date_of_birth, academic_status, created_at)
 SELECT
@@ -292,6 +290,9 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO public.semesters (code, name, start_date, end_date, exam_start_date, exam_end_date, status, created_at)
 VALUES
+    ('2024-HK1', 'Hoc ky 1 nam hoc 2024', DATE '2024-02-01', DATE '2024-06-15', DATE '2024-06-20', DATE '2024-07-05', 'COMPLETED', now()),
+    ('2024-HK2', 'Hoc ky 2 nam hoc 2024', DATE '2024-09-01', DATE '2024-12-31', DATE '2025-01-05', DATE '2025-01-20', 'COMPLETED', now()),
+    ('2025-HK1', 'Hoc ky 1 nam hoc 2025', DATE '2025-02-01', DATE '2025-06-15', DATE '2025-06-20', DATE '2025-07-05', 'COMPLETED', now()),
     ('2025-HK2', 'Hoc ky 2 nam hoc 2025', DATE '2025-09-01', DATE '2025-12-31', DATE '2026-01-05', DATE '2026-01-20', 'COMPLETED', now()),
     ('2026-HK1', 'Hoc ky 1 nam hoc 2026', DATE '2026-02-01', DATE '2026-06-15', DATE '2026-06-20', DATE '2026-07-05', 'ACTIVE', now()),
     ('2026-HK2', 'Hoc ky 2 nam hoc 2026', DATE '2026-09-01', DATE '2026-12-31', DATE '2027-01-05', DATE '2027-01-20', 'UPCOMING', now());
@@ -315,16 +316,17 @@ WITH numbered_courses AS (
 )
 INSERT INTO public.course_sections (code, course_id, lecturer_id, semester_id, capacity, enrolled_count, status, created_at)
 SELECT
-    concat(nc.code, '-01-2026'),
+    concat(nc.code, '.', section_group, '-2026HK1'),
     nc.id,
     l.id,
     s.id,
-    60,
+    CASE WHEN section_group = 1 THEN 60 ELSE 55 END,
     0,
-    CASE WHEN nc.course_no % 10 = 0 THEN 'CLOSED' ELSE 'OPEN' END,
+    CASE WHEN nc.course_no % 13 = 0 THEN 'CLOSED' ELSE 'OPEN' END,
     now()
 FROM numbered_courses nc
-JOIN public.lecturers l ON l.lecturer_code = concat('GV', lpad(((nc.course_no - 1) % 24 + 1)::text, 3, '0'))
+CROSS JOIN generate_series(1, 2) section_group
+JOIN public.lecturers l ON l.lecturer_code = concat('GV', lpad(((nc.course_no + section_group - 2) % 24 + 1)::text, 3, '0'))
 JOIN public.semesters s ON s.code = '2026-HK1';
 
 WITH numbered_courses AS (
@@ -333,21 +335,28 @@ WITH numbered_courses AS (
         c.code,
         row_number() OVER (ORDER BY c.code) AS course_no
     FROM public.courses c
+),
+completed_semesters AS (
+    SELECT
+        s.id,
+        s.code,
+        row_number() OVER (ORDER BY s.code) AS semester_no
+    FROM public.semesters s
+    WHERE s.code IN ('2024-HK2', '2025-HK1', '2025-HK2')
 )
 INSERT INTO public.course_sections (code, course_id, lecturer_id, semester_id, capacity, enrolled_count, status, created_at)
 SELECT
-    concat(nc.code, '-02-2026'),
+    concat(nc.code, '.1-', replace(cs.code, '-', '')),
     nc.id,
     l.id,
-    s.id,
-    55,
+    cs.id,
+    70,
     0,
-    'OPEN',
+    'CLOSED',
     now()
 FROM numbered_courses nc
-JOIN public.lecturers l ON l.lecturer_code = concat('GV', lpad(((nc.course_no + 5) % 24 + 1)::text, 3, '0'))
-JOIN public.semesters s ON s.code = '2026-HK1'
-WHERE nc.course_no <= 20;
+JOIN completed_semesters cs ON true
+JOIN public.lecturers l ON l.lecturer_code = concat('GV', lpad(((nc.course_no + cs.semester_no + 8) % 24 + 1)::text, 3, '0'));
 
 WITH numbered_courses AS (
     SELECT
@@ -358,27 +367,27 @@ WITH numbered_courses AS (
 )
 INSERT INTO public.course_sections (code, course_id, lecturer_id, semester_id, capacity, enrolled_count, status, created_at)
 SELECT
-    concat(nc.code, '-01-2025'),
+    concat(nc.code, '.1-2026HK2'),
     nc.id,
     l.id,
     s.id,
-    70,
+    60,
     0,
-    'CLOSED',
+    'DRAFT',
     now()
 FROM numbered_courses nc
 JOIN public.lecturers l ON l.lecturer_code = concat('GV', lpad(((nc.course_no + 11) % 24 + 1)::text, 3, '0'))
-JOIN public.semesters s ON s.code = '2025-HK2'
-WHERE nc.course_no <= 30;
+JOIN public.semesters s ON s.code = '2026-HK2';
 
 WITH numbered_sections AS (
     SELECT
         cs.id,
         cs.code,
         cs.lecturer_id,
-        row_number() OVER (ORDER BY cs.code) AS rn,
-        row_number() OVER (PARTITION BY cs.lecturer_id ORDER BY cs.code) AS lecturer_rn
+        row_number() OVER (ORDER BY sem.code, cs.code) AS rn,
+        row_number() OVER (PARTITION BY cs.lecturer_id ORDER BY sem.code, cs.code) AS lecturer_rn
     FROM public.course_sections cs
+    JOIN public.semesters sem ON sem.id = cs.semester_id
 )
 INSERT INTO public.course_section_schedules (course_section_id, room_id, day_of_week, start_time, end_time)
 SELECT
@@ -393,37 +402,73 @@ JOIN public.rooms r ON r.code = concat(
     lpad(((((ns.rn - 1) % 30) % 6) + 1)::text, 3, '0')
 );
 
+WITH four_credit_sections AS (
+    SELECT
+        cs.id,
+        cs.code,
+        cs.lecturer_id,
+        row_number() OVER (ORDER BY sem.code, cs.code) AS rn,
+        row_number() OVER (PARTITION BY cs.lecturer_id ORDER BY sem.code, cs.code) AS lecturer_rn
+    FROM public.course_sections cs
+    JOIN public.courses c ON c.id = cs.course_id
+    JOIN public.semesters sem ON sem.id = cs.semester_id
+    WHERE c.credits = 4
+)
+INSERT INTO public.course_section_schedules (course_section_id, room_id, day_of_week, start_time, end_time)
+SELECT
+    fs.id,
+    r.id,
+    ((fs.lecturer_rn + 2) % 6) + 1,
+    (TIME '13:00' + (((fs.lecturer_rn % 2) * 150) * INTERVAL '1 minute'))::time,
+    (TIME '15:00' + (((fs.lecturer_rn % 2) * 150) * INTERVAL '1 minute'))::time
+FROM four_credit_sections fs
+JOIN public.rooms r ON r.code = concat(
+    chr(65 + ((((fs.rn + 7) % 30) / 6)::int)),
+    lpad(((((fs.rn + 7) % 30) % 6) + 1)::text, 3, '0')
+);
+
 WITH student_seed AS (
     SELECT
         st.id,
+        st.academic_status,
         substring(st.student_code from 7)::int AS student_no
     FROM public.students st
     WHERE st.student_code LIKE 'SV2026%'
 ),
-section_seed AS (
+numbered_courses AS (
+    SELECT
+        c.id,
+        c.code,
+        c.credits,
+        row_number() OVER (ORDER BY c.code) AS course_no
+    FROM public.courses c
+),
+active_sections AS (
     SELECT
         cs.id,
-        cs.code,
-        c.id AS course_id,
-        row_number() OVER (ORDER BY cs.code) AS section_no,
-        split_part(cs.code, '-', 2)::int AS section_variant
+        nc.course_no,
+        split_part(split_part(cs.code, '-', 1), '.', 2)::int AS section_group
     FROM public.course_sections cs
     JOIN public.courses c ON c.id = cs.course_id
+    JOIN numbered_courses nc ON nc.id = c.id
     JOIN public.semesters s ON s.id = cs.semester_id
     WHERE s.code = '2026-HK1'
       AND cs.status = 'OPEN'
+),
+planned_active_enrollments AS (
+    SELECT
+        ss.id AS student_id,
+        ac.id AS course_section_id
+    FROM student_seed ss
+    CROSS JOIN generate_series(0, 5) slot_no
+    JOIN active_sections ac
+        ON ac.course_no = (((ss.student_no + (slot_no * 7) - 1) % 40) + 1)
+       AND ac.section_group = (((ss.student_no + slot_no) % 2) + 1)
+    WHERE ss.academic_status = 'STUDYING'
 )
 INSERT INTO public.enrollments (student_id, course_section_id, status, enrolled_at, updated_at)
-SELECT
-    ss.id,
-    sec.id,
-    'ENROLLED',
-    now(),
-    now()
-FROM student_seed ss
-JOIN section_seed sec ON true
-WHERE ((ss.student_no + sec.section_no) % 8) IN (0, 1)
-  AND ((ss.student_no % 2) + 1) = sec.section_variant;
+SELECT student_id, course_section_id, 'ENROLLED', now(), now()
+FROM planned_active_enrollments;
 
 WITH student_seed AS (
     SELECT
@@ -432,24 +477,45 @@ WITH student_seed AS (
     FROM public.students st
     WHERE st.student_code LIKE 'SV2026%'
 ),
-section_seed AS (
+completed_semesters AS (
+    SELECT
+        s.id,
+        s.code,
+        row_number() OVER (ORDER BY s.code) AS semester_no
+    FROM public.semesters s
+    WHERE s.code IN ('2024-HK2', '2025-HK1', '2025-HK2')
+),
+numbered_courses AS (
+    SELECT
+        c.id,
+        row_number() OVER (ORDER BY c.code) AS course_no
+    FROM public.courses c
+),
+past_sections AS (
     SELECT
         cs.id,
-        row_number() OVER (ORDER BY cs.code) AS section_no
+        cs.semester_id,
+        nc.course_no
     FROM public.course_sections cs
-    JOIN public.semesters s ON s.id = cs.semester_id
-    WHERE s.code = '2025-HK2'
+    JOIN public.courses c ON c.id = cs.course_id
+    JOIN numbered_courses nc ON nc.id = c.id
+    JOIN completed_semesters sem ON sem.id = cs.semester_id
+),
+planned_past_enrollments AS (
+    SELECT
+        ss.id AS student_id,
+        ps.id AS course_section_id,
+        CASE WHEN ((ss.student_no + ps.course_no + sem.semester_no) % 7) = 0 THEN 'FAILED' ELSE 'PASSED' END AS status
+    FROM student_seed ss
+    CROSS JOIN completed_semesters sem
+    CROSS JOIN generate_series(0, 3) slot_no
+    JOIN past_sections ps
+        ON ps.semester_id = sem.id
+       AND ps.course_no = (((ss.student_no + (slot_no * 9) + (sem.semester_no * 5) - 1) % 40) + 1)
 )
 INSERT INTO public.enrollments (student_id, course_section_id, status, enrolled_at, updated_at)
-SELECT
-    ss.id,
-    sec.id,
-    CASE WHEN ((ss.student_no + sec.section_no) % 6) = 0 THEN 'FAILED' ELSE 'PASSED' END,
-    now() - INTERVAL '180 days',
-    now()
-FROM student_seed ss
-JOIN section_seed sec ON true
-WHERE ((ss.student_no + sec.section_no) % 5) IN (0, 1);
+SELECT student_id, course_section_id, status, now() - INTERVAL '180 days', now()
+FROM planned_past_enrollments;
 
 UPDATE public.course_sections cs
 SET enrolled_count = COALESCE((
@@ -607,24 +673,26 @@ INSERT INTO public.tuition_records (
 SELECT
     st.id,
     se.id,
-    6500000,
+    CASE WHEN se.code = '2026-HK2' THEN 0 ELSE 6500000 END,
     CASE
+        WHEN se.code = '2026-HK2' THEN 0
         WHEN substring(st.student_code from 7)::int % 4 = 1 THEN 6500000
         WHEN substring(st.student_code from 7)::int % 4 = 2 THEN 3000000
         ELSE 0
     END,
     CASE
+        WHEN se.code = '2026-HK2' THEN 'WAIVED'
         WHEN substring(st.student_code from 7)::int % 4 = 1 THEN 'PAID'
         WHEN substring(st.student_code from 7)::int % 4 = 2 THEN 'PARTIAL'
         WHEN substring(st.student_code from 7)::int % 4 = 3 THEN 'OWED'
         ELSE 'WAIVED'
     END,
-    DATE '2026-05-30',
-    'Hoc phi hoc ky 1 nam hoc 2026',
+    CASE WHEN se.code = '2026-HK2' THEN DATE '2026-10-30' ELSE DATE '2026-05-30' END,
+    concat('Hoc phi ', se.name),
     now(),
     now()
 FROM public.students st
-JOIN public.semesters se ON se.code = '2026-HK1';
+JOIN public.semesters se ON se.code IN ('2025-HK2', '2026-HK1', '2026-HK2');
 
 INSERT INTO public.payment_transactions (
     transaction_code,
@@ -641,20 +709,21 @@ INSERT INTO public.payment_transactions (
     updated_at
 )
 SELECT
-    concat('PAY-', st.student_code, '-SUCCESS'),
+    concat('PAY-', st.student_code, '-', se.code, '-SUCCESS'),
     tr.id,
     st.id,
     tr.paid_amount,
     'MOCK',
     'SUCCESS',
     '/api/payments/mock-webhook',
-    concat('BANK-', st.student_code, '-SUCCESS'),
+    concat('BANK-', st.student_code, '-', se.code, '-SUCCESS'),
     NULL,
     now() - INTERVAL '12 days',
     now() - INTERVAL '12 days',
     now()
 FROM public.tuition_records tr
 JOIN public.students st ON st.id = tr.student_id
+JOIN public.semesters se ON se.id = tr.semester_id
 WHERE tr.paid_amount > 0;
 
 INSERT INTO public.payment_transactions (
@@ -672,21 +741,23 @@ INSERT INTO public.payment_transactions (
     updated_at
 )
 SELECT
-    concat('PAY-', st.student_code, '-FAILED'),
+    concat('PAY-', st.student_code, '-', se.code, '-FAILED'),
     tr.id,
     st.id,
     1000000,
     'MOCK',
     'FAILED',
     '/api/payments/mock-webhook',
-    concat('BANK-', st.student_code, '-FAILED'),
+    concat('BANK-', st.student_code, '-', se.code, '-FAILED'),
     'Giao dich bi tu choi boi ngan hang',
     now() - INTERVAL '5 days',
     now() - INTERVAL '5 days',
     now()
 FROM public.tuition_records tr
 JOIN public.students st ON st.id = tr.student_id
-WHERE substring(st.student_code from 7)::int % 10 = 0;
+JOIN public.semesters se ON se.id = tr.semester_id
+WHERE substring(st.student_code from 7)::int % 10 = 0
+  AND se.code = '2026-HK1';
 
 INSERT INTO public.payment_transactions (
     transaction_code,
@@ -703,7 +774,7 @@ INSERT INTO public.payment_transactions (
     updated_at
 )
 SELECT
-    concat('PAY-', st.student_code, '-PENDING'),
+    concat('PAY-', st.student_code, '-', se.code, '-PENDING'),
     tr.id,
     st.id,
     1500000,
@@ -717,7 +788,9 @@ SELECT
     now()
 FROM public.tuition_records tr
 JOIN public.students st ON st.id = tr.student_id
+JOIN public.semesters se ON se.id = tr.semester_id
 WHERE tr.status IN ('OWED', 'PARTIAL')
+  AND se.code = '2026-HK1'
   AND substring(st.student_code from 7)::int % 13 = 0;
 
 INSERT INTO public.attendances (
