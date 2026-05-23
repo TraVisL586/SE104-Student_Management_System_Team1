@@ -51,6 +51,20 @@ export async function deleteCourse(id) {
   return apiClient.del(`/api/admin/catalog/courses/${id}`);
 }
 
+export async function getCoursePrerequisites(courseId) {
+  return apiClient.get(`/api/admin/catalog/courses/${courseId}/prerequisites`);
+}
+
+export async function addCoursePrerequisite(courseId, prerequisiteCourseId) {
+  return apiClient.post(`/api/admin/catalog/courses/${courseId}/prerequisites`, {
+    prerequisiteCourseId,
+  });
+}
+
+export async function removeCoursePrerequisite(courseId, prerequisiteId) {
+  return apiClient.del(`/api/admin/catalog/courses/${courseId}/prerequisites/${prerequisiteId}`);
+}
+
 export default {
   getDepartments,
   createDepartment,
@@ -64,4 +78,7 @@ export default {
   createCourse,
   updateCourse,
   deleteCourse,
+  getCoursePrerequisites,
+  addCoursePrerequisite,
+  removeCoursePrerequisite,
 };

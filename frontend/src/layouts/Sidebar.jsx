@@ -1,10 +1,10 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-// ... existing code ...
+
 import {
   LayoutDashboard, BookOpen, Calendar, Award, CreditCard, FileText,
   Users, Settings, ClipboardList, GraduationCap, X, ChevronRight,
   Shield, UserCheck, CheckSquare, MessageSquare, BookMarked,
-  FolderOpen, AlertTriangle, CalendarRange, UserCog, LogOut,
+  FolderOpen, AlertTriangle, CalendarRange, UserCog, LogOut,Building2,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 
@@ -26,12 +26,16 @@ const NAV_BY_ROLE = {
     { path: "/lecturer/timetable",     label: "Lịch giảng dạy",   icon: CalendarRange },
   ],
   ADMIN: [
-    { path: "/admin/dashboard",                    label: "Bảng điều khiển",       icon: LayoutDashboard },
-    { path: "/admin/courses",       label: "Quản lý Lớp học phần",  icon: BookMarked },
-    { path: "/admin/curriculum",    label: "Quản lý Chương trình",  icon: FolderOpen },
-    { path: "/admin/student-status",        label: "Trạng thái Sinh viên",  icon: AlertTriangle },
-    { path: "/admin/timetable-manager",     label: "Quản lý Thời khóa biểu", icon: CalendarRange },
-    { path: "/admin/logs",          label: "Nhật ký hệ thống",      icon: Settings },
+    { path: "/admin/dashboard",              label: "Bảng điều khiển",              icon: LayoutDashboard },
+    { path: "/admin/student-status",     label: "Quản lý Sinh viên",           icon: Users },
+    { path: "/admin/accounts",               label: "Quản lý Tài khoản",           icon: UserCog },
+    { path: "/admin/departments",            label: "Quản lý Khoa",           icon: Building2 },
+    { path: "/admin/programs",               label: "Quản lý Chương trình",        icon: GraduationCap },
+    { path: "/admin/catalog-courses",        label: "Quản lý Môn học",             icon: BookOpen },
+    { path: "/admin/curriculum",             label: "Quản lý Tiên quyết",          icon: BookMarked },
+    { path: "/admin/courses",                label: "Quản lý Lớp học phần",        icon: ClipboardList },
+    { path: "/admin/timetable-manager",      label: "Quản lý Lịch học",            icon: Calendar },
+    { path: "/admin/logs",                   label: "Nhật ký hệ thống",            icon: FileText },
   ],
   ACADEMIC_ADVISOR: [
     { path: "/advisor/dashboard",                     label: "Bảng điều khiển",   icon: LayoutDashboard },

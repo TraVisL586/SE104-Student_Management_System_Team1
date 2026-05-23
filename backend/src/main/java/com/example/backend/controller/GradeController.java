@@ -4,7 +4,6 @@ import com.example.backend.constant.GradeUnlockRequestStatus;
 import com.example.backend.dto.request.GradeRequest;
 import com.example.backend.dto.request.GradeUnlockDecisionRequest;
 import com.example.backend.dto.request.GradeUnlockReasonRequest;
-import com.example.backend.dto.response.AuditLogResponse;
 import com.example.backend.dto.response.GradeResponse;
 import com.example.backend.dto.response.GradeUnlockRequestResponse;
 import com.example.backend.service.GradeService;
@@ -79,8 +78,4 @@ public class GradeController {
         return ResponseEntity.ok(gradeService.decideUnlockRequest(userDetails.getUsername(), requestId, request));
     }
 
-    @GetMapping("/api/admin/audit-logs")
-    public ResponseEntity<List<AuditLogResponse>> getAuditLogs() {
-        return ResponseEntity.ok(gradeService.getAuditLogs());
-    }
 }

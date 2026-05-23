@@ -3,6 +3,8 @@ import { Plus, Search, Trash2, BookMarked, Users, CheckCircle2, XCircle, Loader2
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import adminSchedulingService from "../../services/adminSchedulingService";
+import adminCatalogService from "../../services/adminCatalogService";
+import adminAccountService from "../../services/adminAccountService";
 
 export function CourseSections() {
   const [searchParams] = useSearchParams();
@@ -10,6 +12,8 @@ export function CourseSections() {
   const [sections, setSections] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [lecturers, setLecturers] = useState([]);
   const [search, setSearch] = useState(searchParam);
 
   useEffect(() => {
@@ -19,7 +23,8 @@ export function CourseSections() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50 });
+  const createEmptyForm = () => ({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50, status: "OPEN" });
+  const [form, setForm] = useState(createEmptyForm());
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -29,14 +34,18 @@ export function CourseSections() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [secData, semData, rmData] = await Promise.all([
+      const [secData, semData, rmData, courseData, accountData] = await Promise.all([
         adminSchedulingService.getCourseSections(),
         adminSchedulingService.getSemesters(),
         adminSchedulingService.getRooms(),
+        adminCatalogService.getCourses(),
+        adminAccountService.getAllAccounts(),
       ]);
       setSections(Array.isArray(secData) ? secData : []);
       setSemesters(Array.isArray(semData) ? semData : []);
       setRooms(Array.isArray(rmData) ? rmData : []);
+      setCourses(Array.isArray(courseData) ? courseData : []);
+      setLecturers(Array.isArray(accountData) ? accountData.filter((a) => a.profileType === "LECTURER") : []);
     } catch (error) {
       showToast("error", "Lỗi", "Không thể tải danh sách lớp học phần");
     } finally {
@@ -59,14 +68,21 @@ export function CourseSections() {
     e.preventDefault();
     try {
       setSubmitting(true);
+      const payload = {
+        ...form,
+        courseId: Number(form.courseId),
+        semesterId: Number(form.semesterId),
+        lecturerId: Number(form.lecturerId),
+        capacity: Number(form.capacity),
+      };
       if (editId) {
-        await adminSchedulingService.updateCourseSection(editId, form);
+        await adminSchedulingService.updateCourseSection(editId, payload);
         showToast("success", "Thành công", "Đã cập nhật lớp học phần");
       } else {
-        await adminSchedulingService.createCourseSection(form);
+        await adminSchedulingService.createCourseSection(payload);
         showToast("success", "Thành công", "Đã tạo lớp học phần mới");
       }
-      setForm({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50 });
+      setForm(createEmptyForm());
       setShowForm(false);
       setEditId(null);
       fetchAll();
@@ -96,6 +112,7 @@ export function CourseSections() {
       semesterId: sec.semesterId || "",
       lecturerId: sec.lecturerId || "",
       capacity: sec.capacity || 50,
+      status: sec.status || "OPEN",
     });
     setShowForm(true);
   };
@@ -110,7 +127,11 @@ export function CourseSections() {
           </p>
         </div>
         <button
-          onClick={() => { setShowForm((v) => !v); setEditId(null); setForm({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50 }); }}
+            onClick={() => {
+              setEditId(null);
+              setForm(createEmptyForm());
+              setShowForm(true);
+            }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
           style={{ backgroundColor: "#065f46", color: "white", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
         >
@@ -119,40 +140,72 @@ export function CourseSections() {
       </div>
 
       {showForm && (
-        <div className="rounded-2xl p-6" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-          <p style={{ fontWeight: 700, fontSize: "1rem", color: "#1e293b", marginBottom: 16 }}>{editId ? "Chỉnh sửa lớp học phần" : "Thêm lớp học phần mới"}</p>
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Mã lớp HP *</label>
-              <input required value={form.code} onChange={(e) => setForm(p => ({ ...p, code: e.target.value }))} placeholder="VD: CSC501-L02" className="w-full p-2 border rounded-lg text-sm" />
+          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 20, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+              <h2 className="text-lg font-bold mb-4">{editId ? "Chỉnh sửa lớp học phần" : "Thêm lớp học phần mới"}</h2>
+              <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Mã lớp HP *</label>
+                  <input
+                      required
+                      value={form.code}
+                      onChange={(e) => setForm(p => ({ ...p, code: e.target.value }))}
+                      placeholder="VD: CSC501-L02"
+                      className="w-full p-2 border rounded-lg text-sm"
+                      readOnly={!!editId}
+                      style={!!editId ? { backgroundColor: "#f8fafc", cursor: "not-allowed" } : {}}
+                      title={editId ? "Mã lớp HP không thể chỉnh sửa sau khi tạo" : "Mã lớp HP"}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Môn học *</label>
+                  <select required value={form.courseId} onChange={(e) => setForm(p => ({ ...p, courseId: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
+                    <option value="">Chọn môn học</option>
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Học kỳ *</label>
+                  <select required value={form.semesterId} onChange={(e) => setForm(p => ({ ...p, semesterId: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
+                    <option value="">Chọn học kỳ</option>
+                    {semesters.map(s => <option key={s.id} value={s.id}>{s.name || s.code}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên *</label>
+                  <select required value={form.lecturerId} onChange={(e) => setForm(p => ({ ...p, lecturerId: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
+                    <option value="">Chọn giảng viên</option>
+                    {lecturers.map(l => <option key={l.profileId} value={l.profileId}>{l.profileCode} - {l.fullName}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Sĩ số tối đa</label>
+                  <input type="number" value={form.capacity} onChange={(e) => setForm(p => ({ ...p, capacity: parseInt(e.target.value) || 50 }))} className="w-full p-2 border rounded-lg text-sm" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Trạng thái</label>
+                  <select value={form.status} onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
+                    <option value="DRAFT">Nháp</option>
+                    <option value="OPEN">Đang mở</option>
+                    <option value="CLOSED">Đã đóng</option>
+                    <option value="CANCELLED">Đã hủy</option>
+                  </select>
+                </div>
+
+                <div className="col-span-2 flex gap-3 justify-end pt-4 border-t">
+                  <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
+                  <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+                    {submitting ? "Đang lưu..." : editId ? "Cập nhật" : "Tạo lớp"}
+                  </button>
+                </div>
+              </form>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Course ID *</label>
-              <input required type="number" value={form.courseId} onChange={(e) => setForm(p => ({ ...p, courseId: e.target.value }))} placeholder="VD: 1" className="w-full p-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Học kỳ *</label>
-              <select required value={form.semesterId} onChange={(e) => setForm(p => ({ ...p, semesterId: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
-                <option value="">Chọn học kỳ</option>
-                {semesters.map(s => <option key={s.id} value={s.id}>{s.name || s.code}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Lecturer ID</label>
-              <input type="number" value={form.lecturerId} onChange={(e) => setForm(p => ({ ...p, lecturerId: e.target.value }))} placeholder="VD: 2" className="w-full p-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Sĩ số tối đa</label>
-              <input type="number" value={form.capacity} onChange={(e) => setForm(p => ({ ...p, capacity: parseInt(e.target.value) || 50 }))} className="w-full p-2 border rounded-lg text-sm" />
-            </div>
-            <div className="col-span-2 flex gap-3 justify-end">
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="px-4 py-2 border rounded-lg text-sm cursor-pointer">Hủy</button>
-              <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50 cursor-pointer">
-                {submitting ? "Đang lưu..." : editId ? "Cập nhật" : "Tạo lớp"}
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
       )}
 
       {/* Stats */}
@@ -160,7 +213,7 @@ export function CourseSections() {
         {[
           { label: "Đang mở", value: openCount, color: "#10b981", bg: "#d1fae5" },
           { label: "Đã đầy", value: fullCount, color: "#f59e0b", bg: "#fef3c7" },
-          { label: "Đã đóng", value: closedCount, color: "#64748b", bg: "#f1f5f9" },
+          { label: "Đã đóng", value: closedCount, color: "#64748b", bg: "#e2e8f0" },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="rounded-xl p-3 text-center" style={{ backgroundColor: bg }}>
             <p style={{ fontSize: "1.4rem", fontWeight: 800, color }}>{value}</p>
