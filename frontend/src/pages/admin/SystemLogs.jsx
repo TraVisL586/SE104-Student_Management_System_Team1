@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Search, Activity, AlertTriangle, Info, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminAuditLogService from "../../services/adminAuditLogService";
@@ -31,11 +31,7 @@ export function SystemLogs() {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await adminAuditLogService.getAuditLogs();
@@ -44,16 +40,21 @@ export function SystemLogs() {
         time: formatTime(log.createdAt),
         level: inferLevel(log),
         actor: log.actorUsername || "System",
-        action: log.action || "Hoạt động hệ thống",
+        action: log.action || "Hoạt động học vụ",
         detail: log.details || `${log.targetType || "Target"} #${log.targetId || "—"}`,
       })) : []);
     } catch (error) {
-      showToast("error", "Lỗi", error.message || "Không thể tải nhật ký hệ thống");
+      showToast("error", "Lỗi", error.message || "Không thể tải nhật ký điểm & học vụ");
       setLogs([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchLogs();
+  }, [fetchLogs]);
 
   const filtered = logs.filter((l) => {
     const matchS = l.action.toLowerCase().includes(search.toLowerCase()) || l.actor.toLowerCase().includes(search.toLowerCase());
@@ -64,9 +65,9 @@ export function SystemLogs() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 style={{ color: "#1e293b" }}>Nhật ký Hệ thống</h1>
+        <h1 style={{ color: "#1e293b" }}>Nhật ký điểm & học vụ</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: 2 }}>
-          Theo dõi toàn bộ hoạt động và sự kiện trong hệ thống
+          Theo dõi các thao tác nhập điểm, publish điểm và xử lý yêu cầu mở khóa điểm
         </p>
       </div>
 
@@ -96,7 +97,7 @@ export function SystemLogs() {
         <div className="flex items-center justify-between px-5 py-4 flex-wrap gap-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
           <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>
             <Activity size={16} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-            Nhật ký hệ thống ({filtered.length})
+            Nhật ký điểm & học vụ ({filtered.length})
           </p>
           <div style={{ position: "relative" }}>
             <Search size={14} color="#94a3b8" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />

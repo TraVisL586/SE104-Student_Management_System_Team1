@@ -2,9 +2,10 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import {
   LayoutDashboard, BookOpen, Calendar, Award, CreditCard, FileText,
-  Users, Settings, ClipboardList, GraduationCap, X, ChevronRight,
+  Users, ClipboardList, GraduationCap, X, ChevronRight,
   Shield, UserCheck, CheckSquare, MessageSquare, BookMarked,
-  FolderOpen, AlertTriangle, CalendarRange, UserCog, LogOut,Building2,
+  CalendarRange, UserCog, LogOut,Building2,
+  BarChart3, UnlockKeyhole,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 
@@ -35,7 +36,10 @@ const NAV_BY_ROLE = {
     { path: "/admin/curriculum",             label: "Quản lý Tiên quyết",          icon: BookMarked },
     { path: "/admin/courses",                label: "Quản lý Lớp học phần",        icon: ClipboardList },
     { path: "/admin/timetable-manager",      label: "Quản lý Lịch học",            icon: Calendar },
-    { path: "/admin/logs",                   label: "Nhật ký hệ thống",            icon: FileText },
+    { path: "/admin/tuition",                label: "Quản lý Công nợ",             icon: CreditCard },
+    { path: "/admin/grade-unlocks",          label: "Mở khóa điểm",                icon: UnlockKeyhole },
+    { path: "/admin/reports",                label: "Báo cáo thống kê",            icon: BarChart3 },
+    { path: "/admin/logs",                   label: "Nhật ký điểm & học vụ",       icon: FileText },
   ],
   ACADEMIC_ADVISOR: [
     { path: "/advisor/dashboard",                     label: "Bảng điều khiển",   icon: LayoutDashboard },

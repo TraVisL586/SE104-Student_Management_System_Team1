@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search, Shield, Key, Plus, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminAccountService from "../../services/adminAccountService";
@@ -23,6 +23,15 @@ const createEmptyForm = () => ({
   dateOfBirth: "",
   fullName: "",
 });
+
+const generateDefaultPassword = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#";
+  let password = "";
+  for (let index = 0; index < 12; index += 1) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 const buildCreatePayload = (form) => {
   const payload = {
@@ -57,21 +66,22 @@ export function AccountManagement() {
   
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       setLoading(true);
       const data = await adminAccountService.getAllAccounts();
       setAccounts(data);
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải danh sách tài khoản");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const filtered = accounts.filter((a) => 
     a.username?.toLowerCase().includes(search.toLowerCase()) || 
@@ -81,7 +91,7 @@ export function AccountManagement() {
   );
 
   const openCreate = () => {
-    setForm(createEmptyForm());
+    setForm({ ...createEmptyForm(), password: generateDefaultPassword() });
     setShowModal(true);
   };
 
@@ -89,6 +99,15 @@ export function AccountManagement() {
     setSelectedAccountId(id);
     setPasswordForm({ newPassword: "" });
     setShowPasswordModal(true);
+  };
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(form.password);
+      showToast("success", "Đã sao chép", "Mật khẩu tạm thời đã được copy");
+    } catch {
+      showToast("warning", "Không thể sao chép", "Hãy chọn và copy mật khẩu thủ công");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -119,7 +138,7 @@ export function AccountManagement() {
       await adminAccountService.updateAccountStatus(account.id, !account.isActive);
       showToast("success", "Thành công", `Đã ${!account.isActive ? 'kích hoạt' : 'khóa'} tài khoản`);
       fetchAccounts();
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể cập nhật trạng thái");
     }
   };
@@ -222,8 +241,26 @@ export function AccountManagement() {
                 <input required value={form.username} onChange={e => setForm({...form, username: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1">Mật khẩu *</label>
-                <input required type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                <label className="block text-xs font-semibold mb-1">Mật khẩu tạm thời tự tạo *</label>
+                <div className="flex gap-2">
+                  <input
+                    required
+                    readOnly
+                    type="text"
+                    value={form.password}
+                    className="w-full p-2 border rounded-lg text-sm bg-gray-50 text-gray-700"
+                    title="Mật khẩu được FE tự tạo để gửi cho BE theo contract hiện tại"
+                  />
+                  <button type="button" onClick={() => setForm({...form, password: generateDefaultPassword()})} className="px-3 py-2 border rounded-lg text-xs font-semibold">
+                    Tạo lại
+                  </button>
+                  <button type="button" onClick={copyPassword} className="px-3 py-2 border rounded-lg text-xs font-semibold">
+                    Copy
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  FE tự sinh mật khẩu tạm thời vì API hiện tại vẫn yêu cầu trường password khi tạo tài khoản.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1">Họ tên *</label>

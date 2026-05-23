@@ -1,5 +1,6 @@
 import { useRole } from '../context/RoleContext';
 
+/* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // Layout
@@ -17,7 +18,6 @@ import Unauthorized from '../pages/error/Unauthorized';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 // ── Admin ──────────────────────────────────────────────────────────────────
-import AcademicAdminWorkspacePage from '../pages/admin/AcademicAdminWorkspacePage';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import CourseSections from '../pages/admin/CourseSections';
 import CurriculumMgmt from '../pages/admin/CurriculumMgmt';
@@ -28,15 +28,16 @@ import TimetableManager from '../pages/admin/TimetableManager';
 import StudentManagement from '../pages/admin/StudentManagement';
 import AccountManagement from '../pages/admin/AccountManagement';
 import { SystemLogs } from '../pages/admin/SystemLogs';
+import AdminReports from '../pages/admin/AdminReports';
+import TuitionManagement from '../pages/admin/TuitionManagement';
+import GradeUnlockRequests from '../pages/admin/GradeUnlockRequests';
 
 // ── Advisor ──────────────────────────────────────────────────────────────────
-import AcademicAdvisorWorkspacePage from '../pages/advisor/AcademicAdvisorWorkspacePage';
 import AdvisorDashboard from '../pages/advisor/AdvisorDashboard'
 import StudentProfiles from '../pages/advisor/StudentProfiles';
 import RequestProcessing from '../pages/advisor/RequestProcessing';
 
 // ── Lecturer ───────────────────────────────────────────────────────────────
-import LecturerWorkspacePage from '../pages/lecturer/LecturerWorkspacePage';
 import LecturerDashboard from '../pages/lecturer/LecturerDashboard';
 import GradeEntry from '../pages/lecturer/GradeEntry';
 import Attendance from '../pages/lecturer/Attendance';
@@ -45,7 +46,6 @@ import ClassRoster from '../pages/lecturer/ClassRoster';
 import LecturerTimetable from '../pages/lecturer/LecturerTimetable';
 
 // ── Student ────────────────────────────────────────────────────────────────
-import StudentWorkspacePage from '../pages/student/StudentWorkspacePage';
 import StudentDashboard from '../pages/student/StudentDashboard';
 import Registrations from '../pages/student/Registrations';
 import StudentTimetable from '../pages/student/StudentTimetable';
@@ -314,6 +314,30 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={ADMIN_ROLES}>
             <SystemLogs />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/admin/reports',
+        element: (
+          <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+            <AdminReports />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/admin/tuition',
+        element: (
+          <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+            <TuitionManagement />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/admin/grade-unlocks',
+        element: (
+          <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+            <GradeUnlockRequests />
           </ProtectedRoute>
         ),
       },

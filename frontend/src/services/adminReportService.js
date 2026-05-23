@@ -11,7 +11,7 @@ export async function getClassFillRates(semesterId) {
 
 export async function exportClassFillRatesCsv(semesterId) {
   const query = semesterId ? `?semesterId=${semesterId}` : '';
-  return apiClient.get(`/api/admin/reports/class-fill-rates/export${query}`);
+  return apiClient.getBlob(`/api/admin/reports/class-fill-rates/export${query}`);
 }
 
 export async function getGradeProgress(semesterId) {
@@ -19,9 +19,19 @@ export async function getGradeProgress(semesterId) {
   return apiClient.get(`/api/admin/reports/grade-progress${query}`);
 }
 
+export async function exportGradeProgressCsv(semesterId) {
+  const query = semesterId ? `?semesterId=${semesterId}` : '';
+  return apiClient.getBlob(`/api/admin/reports/grade-progress/export${query}`);
+}
+
 export async function getTuitionSummary(semesterId) {
   const query = semesterId ? `?semesterId=${semesterId}` : '';
   return apiClient.get(`/api/admin/reports/tuition-summary${query}`);
+}
+
+export async function exportTuitionSummaryCsv(semesterId) {
+  const query = semesterId ? `?semesterId=${semesterId}` : '';
+  return apiClient.getBlob(`/api/admin/reports/tuition-summary/export${query}`);
 }
 
 export async function getGradeStatusSummary() {
@@ -33,6 +43,8 @@ export default {
   getClassFillRates,
   exportClassFillRatesCsv,
   getGradeProgress,
+  exportGradeProgressCsv,
   getTuitionSummary,
+  exportTuitionSummaryCsv,
   getGradeStatusSummary,
 };

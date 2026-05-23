@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, Edit2, Save, Trash2, Plus, Loader2, UserX } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminStudentService from "../../services/adminStudentService";
 
@@ -34,21 +34,22 @@ export function StudentManagement() {
   
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       const data = await adminStudentService.getAllStudents();
       setStudents(data);
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải danh sách sinh viên");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchStudents();
+  }, [fetchStudents]);
 
   const filtered = students.filter((s) => 
     (s.fullName || s.name || "").toLowerCase().includes(search.toLowerCase()) || 
@@ -64,12 +65,21 @@ export function StudentManagement() {
   };
 
   const generateRandomPassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#";
     let password = "";
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return password;
+  };
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(form.password);
+      showToast("success", "Đã sao chép", "Mật khẩu tạm thời đã được copy");
+    } catch {
+      showToast("warning", "Không thể sao chép", "Hãy chọn và copy mật khẩu thủ công");
+    }
   };
 
   const openCreate = () => {
@@ -145,7 +155,7 @@ export function StudentManagement() {
         await adminStudentService.deleteStudent(id);
         showToast("success", "Thành công", "Đã xóa sinh viên");
         fetchStudents();
-      } catch (error) {
+      } catch {
         showToast("error", "Lỗi", "Không thể xóa sinh viên");
       }
     }
@@ -156,7 +166,7 @@ export function StudentManagement() {
       await adminStudentService.updateStudentStatus(id, status);
       showToast("success", "Thành công", "Đã cập nhật trạng thái");
       fetchStudents();
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể cập nhật trạng thái");
     }
   };
@@ -247,7 +257,7 @@ export function StudentManagement() {
       {showModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 className="text-lg font-bold mb-4">\
+            <h2 className="text-lg font-bold mb-4">
               {editingId ? "Sửa thông tin" : "Thêm sinh viên mới"}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Row 1: Họ tên + Mã sinh viên */}
@@ -262,9 +272,9 @@ export function StudentManagement() {
                 </div>
               </div>
 
-              {/* Password (chỉ hiển thị khi chỉnh sửa) */}
+              {/* Tài khoản chỉ hiển thị khi chỉnh sửa */}
               {editingId && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <div>
                       <label className="block text-xs font-semibold mb-1">Tên tài khoản</label>
                       <input
@@ -273,16 +283,6 @@ export function StudentManagement() {
                           readOnly
                           className="w-full p-2 border rounded-lg text-sm bg-gray-50 text-gray-600"
                           title="Không thể chỉnh sửa"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Mật khẩu tài khoản</label>
-                      <input
-                          type="text"
-                          value={form.password}
-                          readOnly
-                          className="w-full p-2 border rounded-lg text-sm bg-gray-50 text-gray-600"
-                          title="Không thể chỉnh sửa. Dùng chức năng 'Đổi mật khẩu' để thay đổi"
                       />
                     </div>
                   </div>
@@ -334,7 +334,7 @@ export function StudentManagement() {
               {!editingId && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Mật khẩu tài khoản</label>
+                      <label className="block text-xs font-semibold mb-1">Mật khẩu tạm thời tự tạo</label>
                       <input
                           type="text"
                           value={form.password}
@@ -342,14 +342,24 @@ export function StudentManagement() {
                           className="w-full p-2 border rounded-lg text-sm bg-gray-50 text-gray-600"
                           title="Mật khẩu được tạo tự động"
                       />
+                      <p className="mt-1 text-xs text-slate-500">
+                        FE tự sinh mật khẩu tạm thời để gửi cho API tạo sinh viên hiện tại.
+                      </p>
                     </div>
-                    <div className="flex items-end">
+                    <div className="flex items-end gap-2">
                       <button
                           type="button"
                           onClick={() => setForm({...form, password: generateRandomPassword()})}
-                          className="w-full px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-semibold"
+                          className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-semibold"
                       >
                         Tạo lại
+                      </button>
+                      <button
+                          type="button"
+                          onClick={copyPassword}
+                          className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-semibold"
+                      >
+                        Copy
                       </button>
                     </div>
                   </div>

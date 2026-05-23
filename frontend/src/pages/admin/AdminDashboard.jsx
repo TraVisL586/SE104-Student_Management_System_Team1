@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useRole } from "../../context/RoleContext";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { Users, BookMarked, FolderOpen, AlertTriangle, CalendarRange, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
+import { Users, BookMarked, FolderOpen, AlertTriangle, CalendarRange, TrendingUp, ChevronRight, Loader2, CreditCard, UnlockKeyhole, BarChart3 } from "lucide-react";
 import adminReportService from "../../services/adminReportService";
 import adminStudentService from "../../services/adminStudentService";
 import adminSchedulingService from "../../services/adminSchedulingService";
@@ -23,11 +23,7 @@ export function AdminDashboard() {
   const [fillRates, setFillRates] = useState([]);
   const [warningCount, setWarningCount] = useState(0);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const [studentsData, sectionsData, statusData, fillData] = await Promise.allSettled([
@@ -57,7 +53,7 @@ export function AdminDashboard() {
         setStatusSummary(data);
         // Better warning count from report
         const warnFromReport = data.reduce((sum, d) => {
-          if (d.status === "WARNING" || d.status === "SUSPENDED") return sum + (d.count || 0);
+          if (d.status === "WARNING" || d.status === "SUSPENDED") return sum + (d.studentCount || d.count || 0);
           return sum;
         }, 0);
         if (warnFromReport > 0) setWarningCount(warnFromReport);
@@ -71,17 +67,22 @@ export function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   // Build pie chart from status summary
   const pieData = statusSummary.map((d) => ({
     name: d.status || d.name || "Unknown",
-    value: d.count || d.value || 0,
+    value: d.studentCount || d.count || d.value || 0,
   })).filter(d => d.value > 0);
 
   // Build bar chart from fill rates
   const barData = fillRates.slice(0, 10).map((d) => ({
-    code: d.sectionCode || d.code || "",
+    code: d.courseSectionCode || d.sectionCode || d.code || "",
     enrolled: d.enrolledCount || d.enrolled || 0,
     capacity: d.capacity || 0,
   }));
@@ -187,6 +188,9 @@ export function AdminDashboard() {
                   { label: "Quản lý Chương trình ĐT", path: "/admin/curriculum", icon: FolderOpen, color: "#10b981", bg: "#d1fae5", desc: "Cập nhật CTĐT, môn học" },
                   { label: "Trạng thái Sinh viên", path: "/admin/student-status", icon: AlertTriangle, color: "#f59e0b", bg: "#fef3c7", desc: "Cảnh báo, đình chỉ, buộc thôi" },
                   { label: "Quản lý Thời khóa biểu", path: "/admin/timetable-manager", icon: CalendarRange, color: "#2563eb", bg: "#dbeafe", desc: "Lập và điều chỉnh TKB" },
+                  { label: "Quản lý Công nợ", path: "/admin/tuition", icon: CreditCard, color: "#dc2626", bg: "#fee2e2", desc: "Theo dõi học phí, ghi nhận thanh toán" },
+                  { label: "Mở khóa điểm", path: "/admin/grade-unlocks", icon: UnlockKeyhole, color: "#7c3aed", bg: "#ede9fe", desc: "Duyệt yêu cầu sửa điểm đã publish" },
+                  { label: "Báo cáo thống kê", path: "/admin/reports", icon: BarChart3, color: "#0891b2", bg: "#cffafe", desc: "Xem biểu đồ và export CSV" },
                 ].map(({ label, path, icon: Icon, color, bg, desc }) => (
                   <button
                     key={path}
@@ -217,7 +221,7 @@ export function AdminDashboard() {
                       <div style={{ width: 8, height: 8, borderRadius: 9999, backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }} />
                       <span style={{ fontSize: "0.85rem", color: "#1e293b" }}>{s.status || s.name}</span>
                     </div>
-                    <span style={{ fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>{s.count || s.value || 0} SV</span>
+                    <span style={{ fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>{s.studentCount || s.count || s.value || 0} SV</span>
                   </div>
                 ))}
                 {statusSummary.length === 0 && (
