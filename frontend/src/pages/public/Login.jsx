@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { GraduationCap, Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
 import { useRole } from "../../context/RoleContext.jsx";
@@ -11,8 +11,14 @@ export function Login() {
   const [showPw,   setShowPw]   = useState(false);
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
-  const { loginWithBackend } = useRole();
+  const { isAuthenticated, loginWithBackend } = useRole();
   const navigate  = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -67,49 +73,60 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
+              <label htmlFor="login-username" style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
                 Tên đăng nhập <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <div style={{ position: "relative" }}>
                 <Mail size={15} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
                 <input
+                  id="login-username"
+                  name="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Nhập tên đăng nhập"
+                  autoComplete="username"
+                  disabled={loading}
                   style={{ width: "100%", paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.88rem", color: "#334155", outline: "none" }}
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155" }}>
+              <div style={{ position: "relative" }}>
+                <label htmlFor="login-password" style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
                   Mật khẩu <span style={{ color: "#ef4444" }}>*</span>
                 </label>
+                <div style={{ position: "relative" }}>
+                  <Lock size={15} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+                  <input
+                    id="login-password"
+                    name="password"
+                    type={showPw ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    disabled={loading}
+                    style={{ width: "100%", paddingLeft: 38, paddingRight: 42, paddingTop: 11, paddingBottom: 11, borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.88rem", color: "#334155", outline: "none" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    disabled={loading}
+                    aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    {showPw ? <EyeOff size={15} color="#94a3b8" /> : <Eye size={15} color="#94a3b8" />}
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => navigate("/forgot-password")}
-                  style={{ fontSize: "0.75rem", color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
+                  disabled={loading}
+                  style={{ position: "absolute", top: 0, right: 0, fontSize: "0.75rem", color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
                 >
                   Quên mật khẩu?
-                </button>
-              </div>
-              <div style={{ position: "relative" }}>
-                <Lock size={15} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{ width: "100%", paddingLeft: 38, paddingRight: 42, paddingTop: 11, paddingBottom: 11, borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.88rem", color: "#334155", outline: "none" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer" }}
-                >
-                  {showPw ? <EyeOff size={15} color="#94a3b8" /> : <Eye size={15} color="#94a3b8" />}
                 </button>
               </div>
             </div>
