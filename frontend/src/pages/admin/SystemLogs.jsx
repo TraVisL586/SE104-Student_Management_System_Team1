@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { Search, Activity, AlertTriangle, Info, CheckCircle2, XCircle } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Search, Activity, AlertTriangle, Info, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
+import adminAuditLogService from "../../services/adminAuditLogService";
 
 const LEVEL_CONFIG = {
   info:    { label: "INFO",    icon: Info,          bg: "#eff6ff", color: "#2563eb",  border: "#bfdbfe" },
@@ -8,23 +10,53 @@ const LEVEL_CONFIG = {
   error:   { label: "ERROR",   icon: XCircle,       bg: "#fef2f2", color: "#ef4444",  border: "#fecaca" },
 };
 
-const LOGS = [
-  { id: "L001", time: "12/05/2026 08:42:15", level: "success", actor: "Admin (TK)",    action: "Tạo lớp học phần mới",        detail: "CSC501-L03 — GV: TS. Phạm Ngọc Anh — Phòng B401" },
-  { id: "L002", time: "12/05/2026 08:15:30", level: "info",    actor: "Admin (TK)",    action: "Cập nhật thời khóa biểu",     detail: "Tuần 19 — 12 thay đổi lịch học" },
-  { id: "L003", time: "12/05/2026 07:55:10", level: "warning", actor: "Admin (TK)",    action: "Cập nhật trạng thái SV",      detail: "SV.2022.01234 — Cảnh báo lần 2" },
-  { id: "L004", time: "11/05/2026 16:30:00", level: "success", actor: "Advisor (PH)",  action: "Phê duyệt đơn học vụ",        detail: "YC-2026-012 — Nguyễn Thị Lan — Cấp bảng điểm" },
-  { id: "L005", time: "11/05/2026 14:20:45", level: "error",   actor: "System",        action: "Lỗi đồng bộ CSDL",            detail: "Timeout kết nối database lúc 14:20:45 — đã tự phục hồi" },
-  { id: "L006", time: "11/05/2026 10:05:20", level: "info",    actor: "Lecturer (NA)", action: "Nhập điểm giữa kỳ",           detail: "CSC401-L01 — 42/42 sinh viên — đã lưu" },
-  { id: "L007", time: "10/05/2026 09:00:00", level: "warning", actor: "System",        action: "Cảnh báo học phí tự động",    detail: "47 sinh viên nợ học phí quá 14 ngày" },
-  { id: "L008", time: "10/05/2026 08:30:15", level: "success", actor: "Admin (TK)",    action: "Cập nhật CTĐT Kỹ sư CNTT",   detail: "Thêm môn CSC503 vào HK5 — 3 TC" },
-];
+const inferLevel = (log) => {
+  const text = `${log.action || ""} ${log.details || ""}`.toLowerCase();
+  if (text.includes("error") || text.includes("lỗi") || text.includes("failed")) return "error";
+  if (text.includes("warning") || text.includes("cảnh báo")) return "warning";
+  if (text.includes("create") || text.includes("tạo") || text.includes("update") || text.includes("cập nhật") || text.includes("xóa")) return "success";
+  return "info";
+};
+
+const formatTime = (value) => {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("vi-VN");
+};
 
 export function SystemLogs() {
   const [search,   setSearch]   = useState("");
   const [level,    setLevel]    = useState("all");
   const [expanded, setExpanded] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
 
-  const filtered = LOGS.filter((l) => {
+  const fetchLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await adminAuditLogService.getAuditLogs();
+      setLogs(Array.isArray(data) ? data.map((log) => ({
+        id: log.id,
+        time: formatTime(log.createdAt),
+        level: inferLevel(log),
+        actor: log.actorUsername || "System",
+        action: log.action || "Hoạt động học vụ",
+        detail: log.details || `${log.targetType || "Target"} #${log.targetId || "—"}`,
+      })) : []);
+    } catch (error) {
+      showToast("error", "Lỗi", error.message || "Không thể tải nhật ký điểm & học vụ");
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const filtered = logs.filter((l) => {
     const matchS = l.action.toLowerCase().includes(search.toLowerCase()) || l.actor.toLowerCase().includes(search.toLowerCase());
     const matchL = level === "all" || l.level === level;
     return matchS && matchL;
@@ -33,16 +65,16 @@ export function SystemLogs() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 style={{ color: "#1e293b" }}>Nhật ký Hệ thống</h1>
+        <h1 style={{ color: "#1e293b" }}>Nhật ký điểm & học vụ</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: 2 }}>
-          Theo dõi toàn bộ hoạt động và sự kiện trong hệ thống
+          Theo dõi các thao tác nhập điểm, publish điểm và xử lý yêu cầu mở khóa điểm
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Object.entries(LEVEL_CONFIG).map(([key, cfg]) => {
-          const count = LOGS.filter((l) => l.level === key).length;
+          const count = logs.filter((l) => l.level === key).length;
           const Icon = cfg.icon;
           return (
             <button
@@ -65,7 +97,7 @@ export function SystemLogs() {
         <div className="flex items-center justify-between px-5 py-4 flex-wrap gap-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
           <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>
             <Activity size={16} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-            Nhật ký hệ thống ({filtered.length})
+            Nhật ký điểm & học vụ ({filtered.length})
           </p>
           <div style={{ position: "relative" }}>
             <Search size={14} color="#94a3b8" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
@@ -78,6 +110,11 @@ export function SystemLogs() {
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="animate-spin text-blue-600" size={32} />
+          </div>
+        ) : (
         <table className="w-full">
           <thead>
             <tr style={{ backgroundColor: "#f8fafc" }}>
@@ -122,6 +159,7 @@ export function SystemLogs() {
             })}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

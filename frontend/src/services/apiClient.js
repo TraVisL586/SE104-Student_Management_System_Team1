@@ -55,6 +55,27 @@ export async function get(path, opts = {}) {
   return data;
 }
 
+export async function getBlob(path, opts = {}) {
+  const res = await fetch(buildUrl(path), {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+      ...(opts.headers || {}),
+    },
+    ...opts.fetchOptions,
+  });
+
+  const data = await res.blob().catch(() => null);
+  if (!res.ok) {
+    const err = new Error('Request failed');
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+}
+
 export async function put(path, body, opts = {}) {
   const res = await fetch(buildUrl(path), {
     method: 'PUT',
@@ -122,4 +143,4 @@ export async function del(path, opts = {}) {
   return data;
 }
 
-export default { post, get, put, patch, del };
+export default { post, get, getBlob, put, patch, del };

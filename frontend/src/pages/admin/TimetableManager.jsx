@@ -74,6 +74,7 @@ const compactName = (value, fallback = "N/A") => value || fallback;
 export function TimetableManager() {
   const [schedule, setSchedule] = useState([]);
   const [sections, setSections] = useState([]);
+  const [roomOptions, setRoomOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -84,7 +85,7 @@ export function TimetableManager() {
     faculty: "All faculties",
     building: "All buildings",
   });
-  const [form, setForm] = useState({ day: 0, slot: 1, room: "" });
+  const [form, setForm] = useState({ day: 0, slot: 1, roomId: "" });
   const [submitting, setSubmitting] = useState(false);
   const [sectionId, setSectionId] = useState(null);
   const [week, setWeek] = useState(getCurrentWeek());
@@ -105,12 +106,16 @@ export function TimetableManager() {
   const loadTimetable = useCallback(async () => {
     try {
       setLoading(true);
-      const courseSections = await adminSchedulingService.getCourseSections();
+      const [courseSections, roomsData] = await Promise.all([
+        adminSchedulingService.getCourseSections(),
+        adminSchedulingService.getRooms(),
+      ]);
       if (!Array.isArray(courseSections)) {
         setSections([]);
         setSchedule([]);
         return;
       }
+      setRoomOptions(Array.isArray(roomsData) ? roomsData : []);
 
       const formattedSchedules = [];
       courseSections.forEach((sec) => {
@@ -121,6 +126,7 @@ export function TimetableManager() {
           formattedSchedules.push({
             id: sch.id,
             sectionId: sec.id,
+            roomId: sch.roomId,
             day: (sch.dayOfWeek || 1) - 1,
             slot: getSlotId(sch.startTime),
             code: sec.code || sec.courseCode || `SEC-${sec.id}`,
@@ -201,8 +207,11 @@ export function TimetableManager() {
   );
 
   const rooms = useMemo(
-      () => Array.from(new Set([...DEFAULT_ROOMS, ...schedule.map((entry) => entry.room).filter(Boolean)])).sort(),
-      [schedule]
+      () => {
+        const apiRooms = roomOptions.map((room) => room.code || room.name).filter(Boolean);
+        return Array.from(new Set([...apiRooms, ...DEFAULT_ROOMS, ...schedule.map((entry) => entry.room).filter(Boolean)])).sort();
+      },
+      [roomOptions, schedule]
   );
 
   const lecturers = useMemo(
@@ -229,7 +238,8 @@ export function TimetableManager() {
   }
 
   function openQuickAdd(day, slot, room = "") {
-    setForm({ day, slot, room });
+    const matchedRoom = roomOptions.find((item) => item.id === room || item.code === room || item.name === room);
+    setForm({ day, slot, roomId: matchedRoom?.id || room || "" });
     setShowForm(true);
   }
 
@@ -246,13 +256,13 @@ export function TimetableManager() {
     event.preventDefault();
     const day = Number(form.day);
     const slot = Number(form.slot);
-    const roomConflict = schedule.find((entry) => entry.day === day && entry.slot === slot && entry.room === form.room);
+    const roomConflict = schedule.find((entry) => entry.day === day && entry.slot === slot && entry.roomId === Number(form.roomId));
 
     if (roomConflict) {
       showToast(
           "error",
           "Conflict detected",
-          `Room ${form.room} overlapped with ${roomConflict.code}. Choose another room or time slot.`
+          `Room ${roomConflict.room} overlapped with ${roomConflict.code}. Choose another room or time slot.`
       );
       return;
     }
@@ -265,12 +275,12 @@ export function TimetableManager() {
       setSubmitting(true);
 
       if (!sectionId) {
-        showToast("warning", "Chưa nhập Section ID", "Vui lòng nhập Section ID trước khi thêm lịch học.");
+        showToast("warning", "Chưa chọn lớp", "Vui lòng chọn lớp học phần trước khi thêm lịch học.");
         return;
       }
 
-      if (!form.room) {
-        showToast("warning", "Chưa nhập Room ID", "Vui lòng nhập Room ID (số) vào ô phòng học.");
+      if (!form.roomId) {
+        showToast("warning", "Chưa chọn phòng", "Vui lòng chọn phòng học trước khi thêm lịch học.");
         return;
       }
 
@@ -282,14 +292,14 @@ export function TimetableManager() {
       };
 
       await adminSchedulingService.addCourseSectionSchedule(sectionId, {
-        roomId: Number(form.room),
+        roomId: Number(form.roomId),
         dayOfWeek: Number(form.day) + 1,
         startTime: slotTimes[form.slot].start,
         endTime: slotTimes[form.slot].end,
       });
 
       showToast("success", "Đã thêm vào TKB", `Section ${sectionId} - ${DAYS[form.day]}`);
-      setForm({ day: 0, slot: 1, room: "" });
+      setForm({ day: 0, slot: 1, roomId: "" });
       setShowForm(false);
       setSectionId(null);
       loadTimetable();
@@ -491,7 +501,11 @@ export function TimetableManager() {
                       <div style={{ display: "grid", gap: 5 }}>
                         {entries.length
                             ? entries.map((entry) => renderScheduleCard(entry, true))
-                            : renderEmptyCell(0, slot.id, field === "room" ? resource : "")}
+                            : renderEmptyCell(
+                              0,
+                              slot.id,
+                              field === "room" ? roomOptions.find((room) => room.code === resource || room.name === resource)?.id || "" : ""
+                            )}
                       </div>
                     </td>
                 );
@@ -610,25 +624,36 @@ export function TimetableManager() {
                   </select>
                 </div>
                 <div>
-                  <label style={shell.label}>Section ID</label>
-                  <input
-                      type="number"
+                  <label style={shell.label}>Lớp học phần</label>
+                  <select
                       value={sectionId || ""}
                       onChange={(event) => setSectionId(event.target.value ? Number(event.target.value) : null)}
-                      placeholder="Example: 1"
                       required
                       style={control}
-                  />
+                  >
+                    <option value="">Chọn lớp học phần</option>
+                    {sections.map((section) => (
+                        <option key={section.id} value={section.id}>
+                          {section.code} - {section.courseName || section.courseCode || `#${section.id}`}
+                        </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label style={shell.label}>Room ID</label>
-                  <input
-                      value={form.room}
-                      onChange={(event) => setForm((current) => ({ ...current, room: event.target.value }))}
-                      placeholder="Numeric room ID"
+                  <label style={shell.label}>Phòng học</label>
+                  <select
+                      value={form.roomId}
+                      onChange={(event) => setForm((current) => ({ ...current, roomId: event.target.value }))}
                       required
                       style={control}
-                  />
+                  >
+                    <option value="">Chọn phòng</option>
+                    {roomOptions.map((room) => (
+                        <option key={room.id} value={room.id}>
+                          {room.code || room.name} {room.building ? `- ${room.building}` : ""}
+                        </option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ display: "flex", alignItems: "end", gap: 8 }}>
                   <button type="button" onClick={() => setShowForm(false)} style={secondaryButton}>
@@ -726,7 +751,7 @@ export function TimetableManager() {
                 </span>
                   </div>
                   <p style={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 800 }}>
-                    Drop unassigned courses into available cells, then confirm Section ID and Room ID.
+                    Drop unassigned courses into available cells, then confirm section and room before saving.
                   </p>
                 </div>
                 <div className="overflow-x-auto">

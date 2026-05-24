@@ -1,216 +1,274 @@
-import { useState } from "react";
-import { FolderOpen, ChevronDown, ChevronRight, BookOpen, Plus, Edit2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, ChevronDown, ChevronRight, FolderOpen, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import adminCatalogService from "../../services/adminCatalogService";
 
-const PROGRAMS = [
-  {
-    id: "CNTT-KS",
-    name: "Kỹ sư CNTT",
-    khoa: "Khoa CNTT",
-    credits: 130,
-    years: 4,
-    status: "active",
-    semesters: [
-      {
-        sem: "HK1 – Năm 1",
-        courses: [
-          { code: "MTH101", name: "Đại số Tuyến tính",        tc: 3, type: "required" },
-          { code: "MTH102", name: "Giải tích I",              tc: 3, type: "required" },
-          { code: "CSC101", name: "Nhập môn Lập trình",       tc: 3, type: "required" },
-          { code: "GEN101", name: "Triết học Mác-Lê",         tc: 3, type: "general"  },
-          { code: "PHY101", name: "Vật lý Đại cương",         tc: 3, type: "required" },
-        ],
-      },
-      {
-        sem: "HK2 – Năm 1",
-        courses: [
-          { code: "MTH201", name: "Giải tích II",             tc: 3, type: "required" },
-          { code: "CSC201", name: "LTLT Hướng đối tượng",     tc: 3, type: "required" },
-          { code: "CSC202", name: "Hệ quản trị CSDL",         tc: 3, type: "required" },
-          { code: "ENG101", name: "Tiếng Anh 1",              tc: 3, type: "general"  },
-        ],
-      },
-    ],
-  },
-  {
-    id: "CNTT-CU",
-    name: "Cử nhân Khoa học Máy tính",
-    khoa: "Khoa CNTT",
-    credits: 125,
-    years: 4,
-    status: "active",
-    semesters: [],
-  },
-  {
-    id: "KINH-CU",
-    name: "Cử nhân Kinh tế",
-    khoa: "Khoa Kinh tế",
-    credits: 120,
-    years: 4,
-    status: "draft",
-    semesters: [],
-  },
-];
-
-const TYPE_CFG = {
-  required: { label: "Bắt buộc",     color: "#2563eb", bg: "#dbeafe" },
-  general:  { label: "Đại cương",    color: "#8b5cf6", bg: "#ede9fe" },
-  elective: { label: "Tự chọn",      color: "#10b981", bg: "#d1fae5" },
-};
+const degreeLabel = (value) => value || "Chưa phân loại";
 
 export function CurriculumMgmt() {
-  const [selected, setSelected] = useState("CNTT-KS");
-  const [expanded, setExpanded] = useState(["HK1 – Năm 1"]);
+  const [programs, setPrograms] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [expanded, setExpanded] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [prerequisiteId, setPrerequisiteId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
 
-  const prog = PROGRAMS.find((p) => p.id === selected);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  function toggleSem(sem) {
-    setExpanded((prev) =>
-      prev.includes(sem) ? prev.filter((s) => s !== sem) : [...prev, sem]
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [programData, courseData] = await Promise.all([
+        adminCatalogService.getPrograms(),
+        adminCatalogService.getCourses(),
+      ]);
+      const safePrograms = Array.isArray(programData) ? programData : [];
+      const safeCourses = Array.isArray(courseData) ? courseData : [];
+      setPrograms(safePrograms);
+      setCourses(safeCourses);
+      setSelectedProgramId((current) => current || String(safePrograms[0]?.id || ""));
+    } catch (error) {
+      showToast("error", "Lỗi", error.message || "Không thể tải dữ liệu chương trình");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedProgram = programs.find((p) => String(p.id) === String(selectedProgramId));
+
+  const programCourses = useMemo(() => {
+    if (!selectedProgram) return [];
+    return courses.filter((course) => course.departmentId === selectedProgram.departmentId);
+  }, [courses, selectedProgram]);
+
+  const groupedCourses = useMemo(() => {
+    const groups = new Map();
+    programCourses.forEach((course) => {
+      const key = `${course.departmentCode || "KHOA"} - ${course.departmentName || "Chưa có khoa"}`;
+      const list = groups.get(key) || [];
+      list.push(course);
+      groups.set(key, list);
+    });
+    return Array.from(groups.entries());
+  }, [programCourses]);
+
+  const openCourse = (course) => {
+    setSelectedCourse(course);
+    setPrerequisiteId("");
+  };
+
+  const addPrerequisite = async (event) => {
+    event.preventDefault();
+    if (!selectedCourse || !prerequisiteId) return;
+    try {
+      setSubmitting(true);
+      await adminCatalogService.addCoursePrerequisite(selectedCourse.id, Number(prerequisiteId));
+      showToast("success", "Thành công", "Đã thêm môn tiên quyết");
+      await fetchData();
+      setSelectedCourse(null);
+    } catch (error) {
+      showToast("error", "Lỗi", error.message || "Không thể thêm môn tiên quyết");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removePrerequisite = async (courseId, prerequisiteCourseId) => {
+    try {
+      setSubmitting(true);
+      await adminCatalogService.removeCoursePrerequisite(courseId, prerequisiteCourseId);
+      showToast("success", "Thành công", "Đã xóa môn tiên quyết");
+      await fetchData();
+    } catch (error) {
+      showToast("error", "Lỗi", error.message || "Không thể xóa môn tiên quyết");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  function toggleGroup(group) {
+    setExpanded((current) =>
+      current.includes(group) ? current.filter((item) => item !== group) : [...current, group]
     );
   }
+
+  useEffect(() => {
+    if (groupedCourses.length && expanded.length === 0) {
+      setExpanded([groupedCourses[0][0]]);
+    }
+  }, [expanded.length, groupedCourses]);
 
   return (
     <div className="space-y-5">
       <div>
         <h1 style={{ color: "#1e293b" }}>Quản lý Chương trình Đào tạo</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: 2 }}>
-          Xem và cập nhật chương trình đào tạo theo từng ngành — UC12
+          Dữ liệu chương trình, môn học và môn tiên quyết từ backend
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        {/* Program list */}
-        <div className="rounded-2xl" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-          <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
-            <p style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>Chương trình ĐT</p>
-            <button style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "#d1fae5", border: "none", cursor: "pointer" }}>
-              <Plus size={14} color="#10b981" />
-            </button>
-          </div>
-          <div className="p-2">
-            {PROGRAMS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelected(p.id)}
-                className="w-full flex items-start gap-2.5 px-3 py-3 rounded-xl text-left"
-                style={{
-                  backgroundColor: selected === p.id ? "#f0fdf4" : "transparent",
-                  border: `1px solid ${selected === p.id ? "#10b981" : "transparent"}`,
-                  cursor: "pointer",
-                  marginBottom: 2,
-                }}
-              >
-                <FolderOpen size={16} color={selected === p.id ? "#10b981" : "#94a3b8"} style={{ marginTop: 1, flexShrink: 0 }} />
-                <div>
-                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: selected === p.id ? "#065f46" : "#334155" }}>{p.name}</p>
-                  <p style={{ fontSize: "0.68rem", color: "#94a3b8" }}>{p.credits} TC · {p.years} năm</p>
-                  <span style={{
-                    fontSize: "0.62rem", fontWeight: 600, padding: "1px 7px", borderRadius: 9999, marginTop: 3, display: "inline-block",
-                    backgroundColor: p.status === "active" ? "#d1fae5" : "#fef3c7",
-                    color: p.status === "active" ? "#10b981" : "#f59e0b",
-                  }}>
-                    {p.status === "active" ? "Đang áp dụng" : "Dự thảo"}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin text-emerald-600" size={32} />
         </div>
-
-        {/* Curriculum detail */}
-        <div className="lg:col-span-3 space-y-3">
-          {prog && (
-            <>
-              <div className="rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-                <div>
-                  <h2 style={{ color: "#1e293b" }}>{prog.name}</h2>
-                  <p style={{ fontSize: "0.78rem", color: "#64748b", marginTop: 2 }}>
-                    {prog.khoa} · {prog.credits} tín chỉ · {prog.years} năm học · {prog.semesters.length} học kỳ có dữ liệu
-                  </p>
-                </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+          <div className="rounded-2xl" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+            <div className="px-4 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <p style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>Chương trình ĐT</p>
+            </div>
+            <div className="p-2">
+              {programs.map((program) => (
                 <button
-                  onClick={() => showToast("info", "Chỉnh sửa chương trình", prog.name)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl"
-                  style={{ backgroundColor: "#d1fae5", color: "#065f46", border: "none", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600 }}
+                  key={program.id}
+                  onClick={() => setSelectedProgramId(String(program.id))}
+                  className="w-full flex items-start gap-2.5 px-3 py-3 rounded-xl text-left"
+                  style={{
+                    backgroundColor: String(selectedProgramId) === String(program.id) ? "#f0fdf4" : "transparent",
+                    border: `1px solid ${String(selectedProgramId) === String(program.id) ? "#10b981" : "transparent"}`,
+                    cursor: "pointer",
+                    marginBottom: 2,
+                  }}
                 >
-                  <Edit2 size={14} /> Chỉnh sửa
+                  <FolderOpen size={16} color={String(selectedProgramId) === String(program.id) ? "#10b981" : "#94a3b8"} style={{ marginTop: 1, flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#334155" }}>{program.name}</p>
+                    <p style={{ fontSize: "0.68rem", color: "#94a3b8" }}>{program.code} · {program.departmentName || "—"}</p>
+                    <span style={{ fontSize: "0.62rem", fontWeight: 600, padding: "1px 7px", borderRadius: 9999, marginTop: 3, display: "inline-block", backgroundColor: "#d1fae5", color: "#10b981" }}>
+                      {degreeLabel(program.degreeLevel)}
+                    </span>
+                  </div>
                 </button>
-              </div>
+              ))}
+              {programs.length === 0 && <p className="text-sm text-slate-500 p-3">Chưa có chương trình đào tạo.</p>}
+            </div>
+          </div>
 
-              {prog.semesters.length === 0 ? (
-                <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-                  <BookOpen size={32} color="#cbd5e1" style={{ margin: "0 auto 10px" }} />
-                  <p style={{ color: "#94a3b8", fontSize: "0.88rem" }}>Chương trình chưa có dữ liệu môn học.</p>
-                  <button onClick={() => showToast("info", "Thêm học kỳ", prog.name)} style={{ marginTop: 12, padding: "7px 18px", borderRadius: 10, backgroundColor: "#065f46", color: "white", border: "none", cursor: "pointer", fontSize: "0.82rem" }}>
-                    + Thêm học kỳ
-                  </button>
+          <div className="lg:col-span-3 space-y-3">
+            {selectedProgram ? (
+              <>
+                <div className="rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                  <div>
+                    <h2 style={{ color: "#1e293b" }}>{selectedProgram.name}</h2>
+                    <p style={{ fontSize: "0.78rem", color: "#64748b", marginTop: 2 }}>
+                      {selectedProgram.departmentName || "Chưa có khoa"} · {selectedProgram.durationYears || "—"} năm · {programCourses.length} môn thuộc khoa
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                prog.semesters.map((sem) => {
-                  const isOpen = expanded.includes(sem.sem);
-                  const totalTC = sem.courses.reduce((s, c) => s + c.tc, 0);
-                  return (
-                    <div key={sem.sem} className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-                      <button
-                        onClick={() => toggleSem(sem.sem)}
-                        className="w-full flex items-center justify-between px-5 py-4"
-                        style={{ background: "none", border: "none", cursor: "pointer" }}
-                      >
-                        <div className="flex items-center gap-3">
-                          {isOpen ? <ChevronDown size={16} color="#10b981" /> : <ChevronRight size={16} color="#94a3b8" />}
-                          <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b" }}>{sem.sem}</p>
-                          <span style={{ fontSize: "0.72rem", color: "#64748b" }}>{sem.courses.length} môn · {totalTC} TC</span>
-                        </div>
+
+                {groupedCourses.length === 0 ? (
+                  <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                    <BookOpen size={32} color="#cbd5e1" style={{ margin: "0 auto 10px" }} />
+                    <p style={{ color: "#94a3b8", fontSize: "0.88rem" }}>Chưa có môn học nào thuộc khoa của chương trình này.</p>
+                  </div>
+                ) : (
+                  groupedCourses.map(([group, groupCourses]) => {
+                    const isOpen = expanded.includes(group);
+                    return (
+                      <div key={group} className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); showToast("info", "Thêm môn học", sem.sem); }}
-                          style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 8, backgroundColor: "#d1fae5", color: "#065f46", border: "none", cursor: "pointer", fontSize: "0.72rem" }}
+                          onClick={() => toggleGroup(group)}
+                          className="w-full flex items-center justify-between px-5 py-4"
+                          style={{ background: "none", border: "none", cursor: "pointer" }}
                         >
-                          <Plus size={11} /> Thêm môn
+                          <div className="flex items-center gap-3">
+                            {isOpen ? <ChevronDown size={16} color="#10b981" /> : <ChevronRight size={16} color="#94a3b8" />}
+                            <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b" }}>{group}</p>
+                            <span style={{ fontSize: "0.72rem", color: "#64748b" }}>{groupCourses.length} môn</span>
+                          </div>
                         </button>
-                      </button>
-                      {isOpen && (
-                        <div className="overflow-x-auto" style={{ borderTop: "1px solid #f1f5f9" }}>
-                          <table className="w-full">
-                            <thead>
-                              <tr style={{ backgroundColor: "#f8fafc" }}>
-                                {["Mã MH", "Tên môn học", "Tín chỉ", "Loại", ""].map((h) => (
-                                  <th key={h} className="text-left px-4 py-2.5" style={{ fontSize: "0.62rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sem.courses.map((c) => {
-                                const type = TYPE_CFG[c.type];
-                                return (
-                                  <tr key={c.code} style={{ borderTop: "1px solid #f8fafc" }}>
-                                    <td className="px-4 py-2.5" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#10b981", fontWeight: 600 }}>{c.code}</td>
-                                    <td className="px-4 py-2.5" style={{ fontSize: "0.82rem", color: "#1e293b" }}>{c.name}</td>
-                                    <td className="px-4 py-2.5" style={{ fontSize: "0.82rem", color: "#475569", fontWeight: 600 }}>{c.tc}</td>
+
+                        {isOpen && (
+                          <div className="overflow-x-auto" style={{ borderTop: "1px solid #f1f5f9" }}>
+                            <table className="w-full">
+                              <thead>
+                                <tr style={{ backgroundColor: "#f8fafc" }}>
+                                  {["Mã MH", "Tên môn học", "Tín chỉ", "Tiên quyết", ""].map((h) => (
+                                    <th key={h} className="text-left px-4 py-2.5" style={{ fontSize: "0.62rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {groupCourses.map((course) => (
+                                  <tr key={course.id} style={{ borderTop: "1px solid #f8fafc" }}>
+                                    <td className="px-4 py-2.5" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#10b981", fontWeight: 600 }}>{course.code}</td>
+                                    <td className="px-4 py-2.5" style={{ fontSize: "0.82rem", color: "#1e293b" }}>{course.name}</td>
+                                    <td className="px-4 py-2.5" style={{ fontSize: "0.82rem", color: "#475569", fontWeight: 600 }}>{course.credits}</td>
                                     <td className="px-4 py-2.5">
-                                      <span style={{ fontSize: "0.68rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6, backgroundColor: type.bg, color: type.color }}>{type.label}</span>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {(course.prerequisites || []).length === 0 ? (
+                                          <span className="text-xs text-slate-400">Không có</span>
+                                        ) : (
+                                          course.prerequisites.map((pre) => (
+                                            <button
+                                              key={pre.id}
+                                              onClick={() => removePrerequisite(course.id, pre.id)}
+                                              disabled={submitting}
+                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700"
+                                              title="Xóa môn tiên quyết"
+                                            >
+                                              {pre.code} <Trash2 size={11} />
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
                                     </td>
                                     <td className="px-4 py-2.5">
-                                      <button style={{ background: "none", border: "none", cursor: "pointer" }}>
-                                        <Edit2 size={13} color="#94a3b8" />
+                                      <button onClick={() => openCourse(course)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700">
+                                        <Plus size={12} /> Tiên quyết
                                       </button>
                                     </td>
                                   </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </>
-          )}
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                <p style={{ color: "#94a3b8", fontSize: "0.88rem" }}>Chọn một chương trình để xem chi tiết.</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {selectedCourse && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 460, width: "100%" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Link2 size={17} color="#059669" />
+              <h2 className="text-lg font-bold">Thêm môn tiên quyết</h2>
+            </div>
+            <p className="text-sm text-slate-600 mb-4">{selectedCourse.code} - {selectedCourse.name}</p>
+            <form onSubmit={addPrerequisite} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1">Môn tiên quyết *</label>
+                <select required value={prerequisiteId} onChange={(e) => setPrerequisiteId(e.target.value)} className="w-full p-2 border rounded-lg text-sm">
+                  <option value="">Chọn môn học</option>
+                  {courses
+                    .filter((course) => course.id !== selectedCourse.id && !(selectedCourse.prerequisites || []).some((pre) => pre.id === course.id))
+                    .map((course) => <option key={course.id} value={course.id}>{course.code} - {course.name}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <button type="button" onClick={() => setSelectedCourse(null)} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

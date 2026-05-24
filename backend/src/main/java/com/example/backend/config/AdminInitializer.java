@@ -14,8 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.Set;
-
 @Component
 @RequiredArgsConstructor
 public class AdminInitializer implements ApplicationRunner {
@@ -45,25 +43,31 @@ public class AdminInitializer implements ApplicationRunner {
             return;
         }
 
-        if (userRepository.existsByUsername(adminUsername)) {
-            return;
-        }
-
-        if (userRepository.existsByEmail(adminEmail)) {
-            throw new RuntimeException("Admin email already exists");
-        }
-
         Role adminRole = roleRepository.findByName(RoleName.ADMIN)
                 .orElseThrow(() -> new RuntimeException("Role ADMIN does not exist"));
 
-        User admin = new User();
-        admin.setUsername(adminUsername);
-        admin.setEmail(adminEmail);
-        admin.setFullName(adminFullName);
-        admin.setPassword(passwordEncoder.encode(adminPassword));
-        admin.setIsActive(true);
-        admin.setRoles(Set.of(adminRole));
+        userRepository.findByUsername(adminUsername).ifPresentOrElse(existingAdmin -> {
+            existingAdmin.setEmail(adminEmail);
+            existingAdmin.setFullName(adminFullName);
+            existingAdmin.setPassword(passwordEncoder.encode(adminPassword));
+            existingAdmin.setIsActive(true);
+            existingAdmin.getRoles().clear();
+            existingAdmin.getRoles().add(adminRole);
+            userRepository.save(existingAdmin);
+        }, () -> {
+            if (userRepository.existsByEmail(adminEmail)) {
+                throw new RuntimeException("Admin email already exists");
+            }
 
-        userRepository.save(admin);
+            User admin = new User();
+            admin.setUsername(adminUsername);
+            admin.setEmail(adminEmail);
+            admin.setFullName(adminFullName);
+            admin.setPassword(passwordEncoder.encode(adminPassword));
+            admin.setIsActive(true);
+            admin.getRoles().add(adminRole);
+
+            userRepository.save(admin);
+        });
     }
 }
