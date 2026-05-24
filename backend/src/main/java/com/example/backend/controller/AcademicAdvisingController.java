@@ -28,6 +28,11 @@ public class AcademicAdvisingController {
         return ResponseEntity.ok(academicAdvisingService.assignAdvisor(request));
     }
 
+    @GetMapping("/api/admin/advisor-students")
+    public ResponseEntity<List<AdvisorStudentResponse>> getAdvisorAssignments() {
+        return ResponseEntity.ok(academicAdvisingService.getAdvisorAssignments());
+    }
+
     @DeleteMapping("/api/admin/advisors/{advisorId:\\d+}/students/{studentId:\\d+}")
     public ResponseEntity<Void> unassignAdvisor(
             @PathVariable Integer advisorId,

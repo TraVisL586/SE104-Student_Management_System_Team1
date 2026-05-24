@@ -244,24 +244,23 @@ export function AccountManagement() {
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1">Mật khẩu tạm thời tự tạo *</label>
-                <div className="flex gap-2">
+                <div className="flex items-stretch gap-2">
                   <input
                     required
                     readOnly
                     type="text"
                     value={form.password}
-                    className="w-full p-2 border rounded-lg text-sm bg-gray-50 text-gray-700"
+                    className="min-w-0 flex-1 p-2 border rounded-lg text-sm bg-gray-50 text-gray-700"
                     title="Mật khẩu được FE tự tạo để gửi cho BE theo contract hiện tại"
                   />
-                  <button type="button" onClick={() => setForm({...form, password: generateDefaultPassword()})} className="px-3 py-2 border rounded-lg text-xs font-semibold">
+                  <button type="button" onClick={() => setForm({...form, password: generateDefaultPassword()})} className="shrink-0 whitespace-nowrap px-3 py-2 border rounded-lg text-xs font-semibold">
                     Tạo lại
                   </button>
-                  <button type="button" onClick={copyPassword} className="px-3 py-2 border rounded-lg text-xs font-semibold">
+                  <button type="button" onClick={copyPassword} className="shrink-0 whitespace-nowrap px-3 py-2 border rounded-lg text-xs font-semibold">
                     Copy
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  FE tự sinh mật khẩu tạm thời vì API hiện tại vẫn yêu cầu trường password khi tạo tài khoản.
                 </p>
               </div>
               <div>

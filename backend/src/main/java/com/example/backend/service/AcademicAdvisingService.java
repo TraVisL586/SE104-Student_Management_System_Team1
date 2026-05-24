@@ -46,7 +46,7 @@ public class AcademicAdvisingService {
         advisorStudent.setStudent(student);
         advisorStudentRepository.save(advisorStudent);
 
-        return mapAdvisorStudent(student);
+        return mapAdvisorStudent(advisorStudent);
     }
 
     @Transactional
@@ -54,11 +54,16 @@ public class AcademicAdvisingService {
         advisorStudentRepository.deleteByAdvisorIdAndStudentId(advisorId, studentId);
     }
 
+    public List<AdvisorStudentResponse> getAdvisorAssignments() {
+        return advisorStudentRepository.findAll().stream()
+                .map(this::mapAdvisorStudent)
+                .toList();
+    }
+
     public List<AdvisorStudentResponse> getMyStudents(String advisorUsername) {
         AcademicAdvisor advisor = findAdvisorByUsername(advisorUsername);
 
         return advisorStudentRepository.findByAdvisorId(advisor.getId()).stream()
-                .map(AdvisorStudent::getStudent)
                 .map(this::mapAdvisorStudent)
                 .toList();
     }
@@ -247,14 +252,20 @@ public class AcademicAdvisingService {
                 .orElseThrow(() -> new RuntimeException("Student not found"));
     }
 
-    private AdvisorStudentResponse mapAdvisorStudent(Student student) {
+    private AdvisorStudentResponse mapAdvisorStudent(AdvisorStudent advisorStudent) {
+        Student student = advisorStudent.getStudent();
+        AcademicAdvisor advisor = advisorStudent.getAdvisor();
         AdvisorStudentResponse response = new AdvisorStudentResponse();
+        response.setAdvisorId(advisor.getId());
+        response.setAdvisorCode(advisor.getAdvisorCode());
+        response.setAdvisorName(advisor.getFullName());
         response.setStudentId(student.getId());
         response.setStudentCode(student.getStudentCode());
         response.setFullName(student.getFullName());
         response.setEmail(student.getEmail());
         response.setPhone(student.getPhone());
         response.setAcademicStatus(student.getAcademicStatus());
+        response.setAssignedAt(advisorStudent.getAssignedAt());
         return response;
     }
 

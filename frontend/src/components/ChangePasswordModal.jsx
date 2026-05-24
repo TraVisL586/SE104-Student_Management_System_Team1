@@ -27,23 +27,23 @@ export function ChangePasswordModal({ trigger }) {
     const newErrors = {};
 
     if (!currentPassword) {
-      newErrors.currentPassword = 'Current password is required';
+      newErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
     }
 
     if (!newPassword) {
-      newErrors.newPassword = 'New password is required';
+      newErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'Password confirmation is required';
+      newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới';
     }
 
     if (newPassword && currentPassword && newPassword === currentPassword) {
-      newErrors.newPassword = 'New password must be different from current password';
+      newErrors.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
     }
 
     if (newPassword && confirmPassword && newPassword !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
     }
 
     setErrors(newErrors);
@@ -60,17 +60,17 @@ export function ChangePasswordModal({ trigger }) {
     try {
       setLoading(true);
       await studentService.changePassword(currentPassword, newPassword);
-      showToast('success', 'Success', 'Password changed successfully');
+      showToast('success', 'Thành công', 'Đã đổi mật khẩu');
       setOpen(false);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setErrors({});
     } catch (err) {
-      const errorMsg = err.message || 'Failed to change password';
-      showToast('error', 'Error', errorMsg);
+      const errorMsg = err.message || 'Không thể đổi mật khẩu';
+      showToast('error', 'Lỗi', errorMsg);
       if (err.status === 401) {
-        setErrors({ currentPassword: 'Current password is incorrect' });
+        setErrors({ currentPassword: 'Mật khẩu hiện tại không đúng' });
       }
     } finally {
       setLoading(false);
@@ -82,24 +82,24 @@ export function ChangePasswordModal({ trigger }) {
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
-            Change Password
+            Đổi mật khẩu
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Change Password</DialogTitle>
+          <DialogTitle>Đổi mật khẩu</DialogTitle>
           <DialogDescription>
-            Enter your current password and a new password.
+            Nhập mật khẩu hiện tại và mật khẩu mới.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-password">Current Password</Label>
+            <Label htmlFor="current-password">Mật khẩu hiện tại</Label>
             <Input
               id="current-password"
               type="password"
-              placeholder="Enter current password"
+              placeholder="Nhập mật khẩu hiện tại"
               value={currentPassword}
               onChange={(e) => {
                 setCurrentPassword(e.target.value);
@@ -115,11 +115,11 @@ export function ChangePasswordModal({ trigger }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password">Mật khẩu mới</Label>
             <Input
               id="new-password"
               type="password"
-              placeholder="Enter new password"
+              placeholder="Nhập mật khẩu mới"
               value={newPassword}
               onChange={(e) => {
                 setNewPassword(e.target.value);
@@ -135,11 +135,11 @@ export function ChangePasswordModal({ trigger }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Label htmlFor="confirm-password">Xác nhận mật khẩu</Label>
             <Input
               id="confirm-password"
               type="password"
-              placeholder="Confirm new password"
+              placeholder="Nhập lại mật khẩu mới"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value);
@@ -161,10 +161,10 @@ export function ChangePasswordModal({ trigger }) {
               onClick={() => setOpen(false)}
               disabled={loading}
             >
-              Cancel
+              Hủy
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Changing...' : 'Change Password'}
+              {loading ? 'Đang đổi...' : 'Đổi mật khẩu'}
             </Button>
           </DialogFooter>
         </form>

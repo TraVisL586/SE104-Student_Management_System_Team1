@@ -11,9 +11,9 @@ function LecturerWorkspacePage() {
         { label: 'Điểm danh', to: '/lecturer/attendance', variant: 'secondary' },
       ]}
       highlights={[
-        { badge: 'UC-7', title: 'Input Grades', description: 'Nhập điểm giữa kỳ/cuối kỳ và chốt điểm theo quy tắc khóa sửa.' },
-        { badge: 'UC-8', title: 'Attendance', description: 'Điểm danh theo ngày với danh sách có mặt/vắng mặt.' },
-        { badge: 'UC-9', title: 'Communication', description: 'Gửi thông báo tới sinh viên trong lớp qua email hoặc realtime.' },
+        { badge: 'UC-7', title: 'Nhập điểm', description: 'Nhập điểm giữa kỳ/cuối kỳ và chốt điểm theo quy tắc khóa sửa.' },
+        { badge: 'UC-8', title: 'Điểm danh', description: 'Điểm danh theo ngày với danh sách có mặt/vắng mặt.' },
+        { badge: 'UC-9', title: 'Trao đổi lớp học', description: 'Gửi thông báo tới sinh viên trong lớp qua email hoặc thời gian thực.' },
       ]}
     />
   );

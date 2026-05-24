@@ -139,7 +139,7 @@ export function CourseManagement() {
             <table className="w-full" style={{ minWidth: 600 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["ID", "Mã Môn", "Tên Môn học", "Khoa / Viện quản lý", "Tín chỉ", "Thao tác"].map((h) => (
+                  {["ID", "Mã Môn", "Tên Môn học", "Khoa quản lý", "Tín chỉ", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -181,7 +181,7 @@ export function CourseManagement() {
       >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold mb-1">Khoa / Viện quản lý *</label>
+                <label className="block text-xs font-semibold mb-1">Khoa quản lý *</label>
                 <select required value={form.departmentId} onChange={e => setForm({...form, departmentId: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm">
                   <option value="" disabled>-- Chọn Khoa --</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}

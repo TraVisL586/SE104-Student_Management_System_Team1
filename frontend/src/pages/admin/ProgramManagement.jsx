@@ -141,7 +141,7 @@ export function ProgramManagement() {
             <table className="w-full" style={{ minWidth: 700 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["ID", "Mã CT", "Tên Chương trình", "Khoa / Viện", "Tín chỉ", "Thời gian", "Thao tác"].map((h) => (
+                  {["ID", "Mã CT", "Tên Chương trình", "Khoa", "Tín chỉ", "Thời gian", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -184,7 +184,7 @@ export function ProgramManagement() {
       >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold mb-1">Khoa / Viện quản lý *</label>
+                <label className="block text-xs font-semibold mb-1">Khoa quản lý *</label>
                 <select required value={form.departmentId} onChange={e => setForm({...form, departmentId: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm">
                   <option value="" disabled>-- Chọn Khoa --</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
