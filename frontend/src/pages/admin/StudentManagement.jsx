@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminStudentService from "../../services/adminStudentService";
+import adminAccountService from "../../services/adminAccountService";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AdminModal from "../../components/AdminModal";
 
@@ -12,14 +13,19 @@ const ACADEMIC_STATUSES = [
   { value: "GRADUATED", label: "Tốt nghiệp" },
 ];
 
+const getPrimaryRole = (account) => account.roles?.[0] || account.role || account.profileType || "";
+
 export function StudentManagement() {
   const [students, setStudents] = useState([]);
+  const [advisors, setAdvisors] = useState([]);
+  const [advisorAssignments, setAdvisorAssignments] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [assigningStudentId, setAssigningStudentId] = useState(null);
   
   const [form, setForm] = useState({
     name: "",
@@ -37,8 +43,22 @@ export function StudentManagement() {
   const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await adminStudentService.getAllStudents();
-      setStudents(data);
+      const [studentData, accountData, assignmentData] = await Promise.all([
+        adminStudentService.getAllStudents(),
+        adminAccountService.getAllAccounts(),
+        adminStudentService.getAdvisorAssignments(),
+      ]);
+      setStudents(Array.isArray(studentData) ? studentData : []);
+      setAdvisors((Array.isArray(accountData) ? accountData : []).filter((account) =>
+        getPrimaryRole(account) === "ACADEMIC_ADVISOR" && account.profileId
+      ));
+      setAdvisorAssignments((Array.isArray(assignmentData) ? assignmentData : []).reduce((acc, assignment) => {
+        acc[assignment.studentId] = {
+          advisorId: assignment.advisorId,
+          advisorName: assignment.advisorName,
+        };
+        return acc;
+      }, {}));
     } catch {
       showToast("error", "Lỗi", "Không thể tải danh sách sinh viên");
     } finally {
@@ -168,6 +188,42 @@ export function StudentManagement() {
     }
   };
 
+  const handleAdvisorChange = async (studentId, nextAdvisorId) => {
+    const currentAdvisorId = advisorAssignments[studentId]?.advisorId;
+    if (!nextAdvisorId && !currentAdvisorId) return;
+
+    try {
+      setAssigningStudentId(studentId);
+
+      if (!nextAdvisorId) {
+        await adminStudentService.unassignAdvisor(studentId, currentAdvisorId);
+        setAdvisorAssignments((current) => {
+          const next = { ...current };
+          delete next[studentId];
+          return next;
+        });
+        showToast("success", "Thành công", "Đã bỏ gán cố vấn học tập");
+        return;
+      }
+
+      const advisorId = Number(nextAdvisorId);
+      const result = await adminStudentService.assignAdvisor(studentId, advisorId);
+      const selectedAdvisor = advisors.find((advisor) => advisor.profileId === advisorId);
+      setAdvisorAssignments((current) => ({
+        ...current,
+        [studentId]: {
+          advisorId: result.advisorId || advisorId,
+          advisorName: result.advisorName || selectedAdvisor?.fullName || "",
+        },
+      }));
+      showToast("success", "Thành công", "Đã gán cố vấn học tập");
+    } catch (error) {
+      showToast("error", "Lỗi", error.message || "Không thể cập nhật cố vấn học tập");
+    } finally {
+      setAssigningStudentId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -206,10 +262,10 @@ export function StudentManagement() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ minWidth: 800 }}>
+            <table className="w-full" style={{ minWidth: 980 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["MSSV", "Họ và tên", "Email", "SĐT", "Trạng thái", "Thao tác"].map((h) => (
+                  {["MSSV", "Họ và tên", "Email", "SĐT", "Trạng thái", "Cố vấn học tập", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -228,6 +284,22 @@ export function StudentManagement() {
                         style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: "0.75rem", outline: "none" }}
                       >
                         {ACADEMIC_STATUSES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={advisorAssignments[s.id]?.advisorId || ""}
+                        disabled={assigningStudentId === s.id || advisors.length === 0}
+                        onChange={(e) => handleAdvisorChange(s.id, e.target.value)}
+                        style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: "0.75rem", outline: "none", minWidth: 180, backgroundColor: "white" }}
+                        title={advisors.length === 0 ? "Chưa có tài khoản cố vấn học tập" : "Chọn cố vấn học tập"}
+                      >
+                        <option value="">Chưa gán</option>
+                        {advisors.map((advisor) => (
+                          <option key={advisor.profileId} value={advisor.profileId}>
+                            {advisor.fullName || advisor.username} {advisor.profileCode ? `(${advisor.profileCode})` : ""}
+                          </option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-4 py-3">

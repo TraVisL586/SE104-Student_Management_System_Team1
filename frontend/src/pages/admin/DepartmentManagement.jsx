@@ -64,10 +64,10 @@ export function DepartmentManagement() {
     try {
       if (editingId) {
         await adminCatalogService.updateDepartment(editingId, form);
-        showToast("success", "Thành công", "Đã cập nhật khoa/viện");
+        showToast("success", "Thành công", "Đã cập nhật khoa");
       } else {
         await adminCatalogService.createDepartment(form);
-        showToast("success", "Thành công", "Đã thêm khoa/viện mới");
+        showToast("success", "Thành công", "Đã thêm khoa mới");
       }
       setShowModal(false);
       fetchDepartments();
@@ -95,9 +95,9 @@ export function DepartmentManagement() {
     <div className="space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ color: "#1e293b" }}>Quản lý Khoa / Viện</h1>
+          <h1 style={{ color: "#1e293b" }}>Quản lý Khoa</h1>
           <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: 2 }}>
-            Quản lý danh sách các Khoa và Viện trong trường
+            Quản lý danh sách các Khoa trong trường
           </p>
         </div>
         <button
@@ -167,7 +167,7 @@ export function DepartmentManagement() {
 
       <AdminModal
         open={showModal}
-        title={editingId ? "Sửa khoa/viện" : "Thêm khoa/viện mới"}
+        title={editingId ? "Sửa khoa" : "Thêm khoa mới"}
         onClose={() => setShowModal(false)}
         maxWidth="max-w-lg"
       >
@@ -194,7 +194,7 @@ export function DepartmentManagement() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Xóa khoa/viện?"
+        title="Xóa khoa?"
         description={deleteTarget ? `Khoa "${deleteTarget.code} - ${deleteTarget.name}" sẽ bị xóa. Các dữ liệu liên quan có thể bị ảnh hưởng.` : ""}
         confirmLabel="Xóa khoa"
         loading={deleting}
