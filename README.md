@@ -26,7 +26,7 @@
 
 | STT | MSSV | Họ và tên | GitHub |
 |:---:|:---:|:---:|:---:|
-| 1 | **245201289** | Cao Tiến Phát | [phatcao026](https://github.com/phatcao026) |
+| 1 | **24521289** | Cao Tiến Phát | [phatcao026](https://github.com/phatcao026) |
 | 2 | **24521018** | Trần Việt Long | [TraVisL586](https://github.com/TraVisL586) |
 | 3 | **24520812** | Đỗ Đăng Khoa | [DOKA206](https://github.com/DOKA206) |
 
