@@ -1,4 +1,35 @@
-# Hệ Thống Quản Lý Sinh Viên (Student Management System) - SE104 Team 1
+<p align="center">
+  <img src="ReadmeAssets/uit.png" alt="UIT Logo" width="200">
+</p>
+
+<h1 align="center">HỆ THỐNG QUẢN LÝ SINH VIÊN</h1>
+
+<p align="center">
+  <strong>Đồ án môn học: Nhập môn Công nghệ phần mềm (SE104)</strong>
+</p>
+
+<p align="center">
+  <a href="#-giới-thiệu-dự-án">Giới thiệu</a> •
+  <a href="#-kiến-trúc-hệ-thống-architecture">Kiến trúc</a> •
+  <a href="#-công-nghệ-sử-dụng">Công nghệ</a> •
+  <a href="#-yêu-cầu-cài-đặt-prerequisites">Yêu cầu cài đặt</a> •
+  <a href="#-hướng-dẫn-cài-đặt--chạy-ứng-dụng">Hướng dẫn chạy</a> •
+  <a href="#-danh-sách-tài-khoản-mẫu-test-accounts">Tài khoản Test</a>
+</p>
+
+---
+
+## 👥 Sinh viên thực hiện
+
+| STT | MSSV | Họ và tên | GitHub |
+|:---:|:---:|:---:|:---:|
+| 1 | **24520842** | Cao Tiến Phát | [phatcao026](https://github.com/phatcao026) |
+| 2 | **24521018** | Trần Việt Long | [TraVisL586](https://github.com/TraVisL586) |
+| 3 | **24520812** | Đỗ Đăng Khoa | [DOKA206](https://github.com/DOKA206) |
+
+---
+
+## 📖 Giới Thiệu Dự Án
 
 Đây là dự án Hệ Thống Quản Lý Sinh Viên được phát triển cho môn học SE104. Ứng dụng cung cấp các tính năng quản lý học vụ toàn diện bao gồm: quản lý thông tin sinh viên, giảng viên, môn học, đăng ký lớp học, quản lý điểm số, thanh toán học phí và xử lý các yêu cầu học vụ.
 
