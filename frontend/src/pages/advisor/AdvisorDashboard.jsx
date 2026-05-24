@@ -1,60 +1,62 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useRole } from "../../context/RoleContext";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { UserCheck, FileText, AlertTriangle, Clock, ChevronRight, Loader2 } from "lucide-react";
+import { UserCheck, FileText, AlertTriangle, ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
 import advisorService from "../../services/advisorService";
+import { getAcademicStatusConfig, getStudentDisplayName, isAtRiskStatus } from "./advisorStatus";
 
 export function AdvisorDashboard() {
   const { user } = useRole();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   
   const [students, setStudents] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(false);
       const [stuData, reqData] = await Promise.all([
         advisorService.getMyStudents(),
         advisorService.getAdvisorRequests("PENDING")
       ]);
-      setStudents(stuData || []);
-      setRequests(reqData || []);
-    } catch (error) {
-      console.error("Lỗi khi tải dữ liệu dashboard cố vấn", error);
+      setStudents(Array.isArray(stuData) ? stuData : []);
+      setRequests(Array.isArray(reqData) ? reqData : []);
+    } catch {
+      setLoadError(true);
+      showToast("error", "Lỗi", "Không thể tải dữ liệu bảng điều khiển cố vấn");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    void fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const pendingRequests = requests.filter(r => r.status === "PENDING");
-  
-  // Calculate stats
-  let countActive = 0, countWarning = 0, countSuspended = 0;
-  const atRiskStudents = [];
-  
-  students.forEach(s => {
-    if (s.academicStatus === "ACTIVE" || s.academicStatus === "GRADUATED") countActive++;
-    else if (s.academicStatus === "WARNING") {
-      countWarning++;
-      atRiskStudents.push(s);
-    }
-    else if (s.academicStatus === "SUSPENDED" || s.academicStatus === "DROPPED_OUT") {
-      countSuspended++;
-      atRiskStudents.push(s);
-    }
-  });
+
+  const statusCounts = useMemo(() => students.reduce((acc, student) => {
+    const status = student.academicStatus || "UNKNOWN";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {}), [students]);
+
+  const atRiskStudents = useMemo(
+    () => students.filter((student) => isAtRiskStatus(student.academicStatus)),
+    [students]
+  );
 
   const STATUS_DATA = [
-    { name: "Bình thường", value: countActive, color: "#10b981" },
-    { name: "Cảnh báo",    value: countWarning, color: "#f59e0b" },
-    { name: "Đình chỉ / Thôi học", value: countSuspended,  color: "#ef4444" },
+    { name: "Đang học", value: statusCounts.STUDYING || 0, color: "#10b981" },
+    { name: "Tạm nghỉ", value: statusCounts.ON_LEAVE || 0, color: "#f59e0b" },
+    { name: "Đình chỉ", value: statusCounts.SUSPENDED || 0, color: "#ef4444" },
+    { name: "Tốt nghiệp", value: statusCounts.GRADUATED || 0, color: "#2563eb" },
   ];
 
   return (
@@ -65,7 +67,7 @@ export function AdvisorDashboard() {
         style={{ background: "linear-gradient(135deg, #78350f 0%, #f59e0b 100%)" }}
       >
         <div>
-          <p style={{ color: "#fde68a", fontSize: "0.82rem" }}>Bảng điều khiển Cố vấn Học tập 📋</p>
+          <p style={{ color: "#fde68a", fontSize: "0.82rem" }}>Bảng điều khiển Cố vấn Học tập</p>
           <h1 style={{ color: "white", marginTop: 2 }}>{user?.name || "Cố vấn"}</h1>
           <p style={{ color: "#fef3c7", fontSize: "0.8rem", marginTop: 4 }}>
             {user?.email}
@@ -92,6 +94,17 @@ export function AdvisorDashboard() {
         <div className="flex justify-center py-10">
           <Loader2 className="animate-spin text-orange-500" size={32} />
         </div>
+      ) : loadError ? (
+        <div className="rounded-2xl border border-red-100 bg-white p-8 text-center">
+          <AlertTriangle className="mx-auto mb-3 text-red-500" size={34} />
+          <p className="text-sm font-semibold text-slate-800">Không thể tải dữ liệu cố vấn</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            <RefreshCw size={14} /> Tải lại
+          </button>
+        </div>
       ) : (
         <>
           {/* Stats */}
@@ -99,8 +112,8 @@ export function AdvisorDashboard() {
             {[
               { label: "Sinh viên phụ trách",  value: students.length,  sub: "Đang theo dõi",        color: "#f59e0b", bg: "#fef3c7", icon: UserCheck },
               { label: "Đơn chờ xử lý",        value: pendingRequests.length, sub: "Đang chờ duyệt", color: "#ef4444", bg: "#fee2e2", icon: FileText },
-              { label: "Cảnh báo học vụ",      value: countWarning,   sub: "Cần theo dõi đặc biệt",color: "#f59e0b", bg: "#fef3c7", icon: AlertTriangle },
-              { label: "Đình chỉ / Thôi học",    value: countSuspended,   sub: "Cần chú ý",      color: "#dc2626", bg: "#fecaca", icon: AlertTriangle },
+              { label: "Tạm nghỉ",      value: statusCounts.ON_LEAVE || 0,   sub: "Cần theo dõi", color: "#f59e0b", bg: "#fef3c7", icon: AlertTriangle },
+              { label: "Đình chỉ",    value: statusCounts.SUSPENDED || 0,   sub: "Cần chú ý", color: "#dc2626", bg: "#fecaca", icon: AlertTriangle },
             ].map(({ label, value, sub, color, bg, icon: Icon }) => (
               <div key={label} className="rounded-2xl p-4" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
                 <div className="flex items-center justify-between mb-3">
@@ -189,18 +202,21 @@ export function AdvisorDashboard() {
                 <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Sinh viên cần theo dõi</p>
               </div>
               <div className="divide-y" style={{ borderColor: "#f1f5f9" }}>
-                {atRiskStudents.map((s) => (
+                {atRiskStudents.map((s) => {
+                  const statusConfig = getAcademicStatusConfig(s.academicStatus);
+                  const displayName = getStudentDisplayName(s);
+                  return (
                   <div key={s.studentId} className="flex items-center gap-4 px-5 py-3">
                     <div style={{ width: 36, height: 36, borderRadius: 9999, backgroundColor: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#ef4444" }}>{s.studentName.charAt(0)}</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#ef4444" }}>{displayName.charAt(0)}</span>
                     </div>
                     <div className="flex-1">
-                      <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b" }}>{s.studentName}</p>
+                      <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b" }}>{displayName}</p>
                       <p style={{ fontSize: "0.7rem", color: "#64748b" }}>{s.studentCode}</p>
                     </div>
                     <div style={{ maxWidth: 200 }}>
                       <p style={{ fontSize: "0.72rem", color: "#ef4444", fontWeight: 500 }}>
-                        {s.academicStatus === "WARNING" ? "Cảnh báo học vụ" : "Đình chỉ / Thôi học"}
+                        {statusConfig.label}
                       </p>
                     </div>
                     <button
@@ -210,7 +226,7 @@ export function AdvisorDashboard() {
                       Xem hồ sơ
                     </button>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { useRole } from '../context/RoleContext';
 
 /* eslint-disable react-refresh/only-export-components */
@@ -18,7 +19,6 @@ import Unauthorized from '../pages/error/Unauthorized';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 // ── Admin ──────────────────────────────────────────────────────────────────
-import AdminDashboard from '../pages/admin/AdminDashboard';
 import CourseSections from '../pages/admin/CourseSections';
 import CurriculumMgmt from '../pages/admin/CurriculumMgmt';
 import DepartmentManagement from '../pages/admin/DepartmentManagement';
@@ -28,14 +28,8 @@ import TimetableManager from '../pages/admin/TimetableManager';
 import StudentManagement from '../pages/admin/StudentManagement';
 import AccountManagement from '../pages/admin/AccountManagement';
 import { SystemLogs } from '../pages/admin/SystemLogs';
-import AdminReports from '../pages/admin/AdminReports';
 import TuitionManagement from '../pages/admin/TuitionManagement';
 import GradeUnlockRequests from '../pages/admin/GradeUnlockRequests';
-
-// ── Advisor ──────────────────────────────────────────────────────────────────
-import AdvisorDashboard from '../pages/advisor/AdvisorDashboard'
-import StudentProfiles from '../pages/advisor/StudentProfiles';
-import RequestProcessing from '../pages/advisor/RequestProcessing';
 
 // ── Lecturer ───────────────────────────────────────────────────────────────
 import LecturerDashboard from '../pages/lecturer/LecturerDashboard';
@@ -57,8 +51,26 @@ import Notifications from '../pages/student/Notifications';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ADMIN_ROLES = ['ADMIN', 'ACADEMIC_ADMIN'];
-const ADVISOR_ROLES = ['ADMIN', 'ACADEMIC_ADVISOR'];
+const ADMIN_ROLES = ['ADMIN'];
+const ADVISOR_ROLES = ['ACADEMIC_ADVISOR'];
+
+const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'));
+const AdminReports = lazy(() => import('../pages/admin/AdminReports'));
+const AdvisorDashboard = lazy(() => import('../pages/advisor/AdvisorDashboard'));
+const StudentProfiles = lazy(() => import('../pages/advisor/StudentProfiles'));
+const RequestProcessing = lazy(() => import('../pages/advisor/RequestProcessing'));
+
+const LazyPage = ({ children }) => (
+  <Suspense
+    fallback={
+      <div className="flex min-h-60 items-center justify-center text-sm text-slate-500">
+        Đang tải...
+      </div>
+    }
+  >
+    {children}
+  </Suspense>
+);
 
 const RootRedirect = () => {
   const { isAuthenticated, role } = useRole();
@@ -98,11 +110,10 @@ const appRouter = createBrowserRouter([
     element: <Layout />,
     children: [
 
-         // ── DASHBOARD (public landing, visible to all logged-in users) ────────
-                  {
-                    path: '/dashboard',
-                    element: <AdminDashboard />,
-                  },
+      {
+        path: '/dashboard',
+        element: <RootRedirect />,
+      },
 
       // ── STUDENT ─────────────────────────────────────────────────────────
       {
@@ -241,7 +252,9 @@ const appRouter = createBrowserRouter([
         path: '/admin',
         element: (
           <ProtectedRoute allowedRoles={ADMIN_ROLES}>
-            <AdminDashboard />
+            <LazyPage>
+              <AdminDashboard />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -249,7 +262,9 @@ const appRouter = createBrowserRouter([
         path: '/admin/dashboard',
         element: (
           <ProtectedRoute allowedRoles={ADMIN_ROLES}>
-            <AdminDashboard />
+            <LazyPage>
+              <AdminDashboard />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -321,7 +336,9 @@ const appRouter = createBrowserRouter([
         path: '/admin/reports',
         element: (
           <ProtectedRoute allowedRoles={ADMIN_ROLES}>
-            <AdminReports />
+            <LazyPage>
+              <AdminReports />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -350,20 +367,24 @@ const appRouter = createBrowserRouter([
         ),
       },
 
-      // ── ACADEMIC ADVISOR (+ Admin có thể truy cập) ───────────────────────
+      // ── ACADEMIC ADVISOR ───────────────────────
       {
         path: '/advisor',
         element: (
           <ProtectedRoute allowedRoles={ADVISOR_ROLES}>
-            <AdminDashboard />
+            <LazyPage>
+              <AdvisorDashboard />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
       {
-        path: '/advisor/dashboard', // <--- THÊM DÒNG NÀY
+        path: '/advisor/dashboard',
         element: (
           <ProtectedRoute allowedRoles={ADVISOR_ROLES}>
-            <AdvisorDashboard />
+            <LazyPage>
+              <AdvisorDashboard />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -371,7 +392,9 @@ const appRouter = createBrowserRouter([
         path: '/advisor/profiles',
         element: (
           <ProtectedRoute allowedRoles={ADVISOR_ROLES}>
-            <StudentProfiles />
+            <LazyPage>
+              <StudentProfiles />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -379,7 +402,9 @@ const appRouter = createBrowserRouter([
         path: '/advisor/requests',
         element: (
           <ProtectedRoute allowedRoles={ADVISOR_ROLES}>
-            <RequestProcessing />
+            <LazyPage>
+              <RequestProcessing />
+            </LazyPage>
           </ProtectedRoute>
         ),
       },

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, Clock, AlertTriangle, MessageSquare, Search, Loader2 } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, XCircle, Clock, MessageSquare, Search, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import advisorService from "../../services/advisorService";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const STATUS_CFG = {
   PENDING:  { label: "Chờ xử lý",   color: "#f59e0b", bg: "#fef3c7", icon: Clock },
@@ -12,55 +13,67 @@ const STATUS_CFG = {
 export function RequestProcessing() {
   const [requests, setRequests] = useState([]);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [filter, setFilter] = useState("PENDING");
   const [reviewing, setReviewing] = useState(null);
+  const [decisionTarget, setDecisionTarget] = useState(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchRequests();
-  }, [filter]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(false);
       const data = await advisorService.getAdvisorRequests(filter === "ALL" ? "" : filter);
-      setRequests(data);
-    } catch (error) {
+      setRequests(Array.isArray(data) ? data : []);
+    } catch {
+      setLoadError(true);
       showToast("error", "Lỗi", "Không thể tải danh sách yêu cầu học vụ");
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, showToast]);
 
-  const filtered = requests.filter((r) => {
-    const matchS = r.studentName?.toLowerCase().includes(search.toLowerCase()) || 
-                   r.studentCode?.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    void fetchRequests();
+  }, [fetchRequests]);
+
+  const filtered = useMemo(() => requests.filter((r) => {
+    const matchS = r.studentName?.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                   r.studentCode?.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                   r.title?.toLowerCase().includes(deferredSearch.toLowerCase());
     return matchS;
-  });
+  }), [deferredSearch, requests]);
 
-  const decide = async (id, isApproved) => {
+  const openDecision = (request, isApproved) => {
     if (!note.trim() && !isApproved) {
       showToast("warning", "Cần ghi chú", "Vui lòng nhập lý do từ chối.");
       return;
     }
+    setDecisionTarget({ request, approved: isApproved });
+  };
+
+  const decide = async () => {
+    if (!decisionTarget) return;
+    const { request, approved } = decisionTarget;
     try {
       setSubmitting(true);
-      await advisorService.decideAcademicRequest(id, isApproved, note);
+      await advisorService.decideAcademicRequest(request.id, approved, note.trim());
       
-      const req = requests.find((r) => r.id === id);
       showToast(
-        isApproved ? "success" : "info",
-        isApproved ? "Đã duyệt yêu cầu" : "Đã từ chối yêu cầu",
-        `${req?.title} — ${req?.studentName}`
+        approved ? "success" : "info",
+        approved ? "Đã duyệt yêu cầu" : "Đã từ chối yêu cầu",
+        `${request.title} — ${request.studentName}`
       );
       
       setReviewing(null);
+      setDecisionTarget(null);
       setNote("");
-      fetchRequests();
-    } catch (error) {
+      await fetchRequests();
+    } catch {
       showToast("error", "Lỗi", "Không thể xử lý yêu cầu");
     } finally {
       setSubmitting(false);
@@ -117,6 +130,14 @@ export function RequestProcessing() {
         {loading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="animate-spin text-blue-600" size={32} />
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "#fff", border: "1px solid #fee2e2" }}>
+            <AlertTriangle size={32} color="#ef4444" style={{ margin: "0 auto 10px" }} />
+            <p className="text-sm font-semibold text-slate-800">Không thể tải danh sách yêu cầu</p>
+            <button onClick={fetchRequests} className="mt-4 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold">
+              <RefreshCw size={14} /> Tải lại
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
@@ -188,7 +209,7 @@ export function RequestProcessing() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => decide(req.id, true)}
+                      onClick={() => openDecision(req, true)}
                       disabled={submitting}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-50"
                       style={{ backgroundColor: "#065f46", color: "white", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
@@ -196,7 +217,7 @@ export function RequestProcessing() {
                       <CheckCircle2 size={15} /> Duyệt
                     </button>
                     <button
-                      onClick={() => decide(req.id, false)}
+                      onClick={() => openDecision(req, false)}
                       disabled={submitting}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-50"
                       style={{ backgroundColor: "#fee2e2", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
@@ -218,6 +239,17 @@ export function RequestProcessing() {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={!!decisionTarget}
+        title={decisionTarget?.approved ? "Duyệt yêu cầu học vụ?" : "Từ chối yêu cầu học vụ?"}
+        description={decisionTarget ? `${decisionTarget.request.studentCode} - ${decisionTarget.request.studentName}: ${decisionTarget.request.title}` : ""}
+        confirmLabel={decisionTarget?.approved ? "Duyệt yêu cầu" : "Từ chối yêu cầu"}
+        variant={decisionTarget?.approved ? "success" : "danger"}
+        loading={submitting}
+        onCancel={() => setDecisionTarget(null)}
+        onConfirm={decide}
+      />
     </div>
   );
 }

@@ -33,6 +33,16 @@ function saveArrayBuffer(buffer, filename) {
   URL.revokeObjectURL(url);
 }
 
+let excelJSModulePromise;
+
+async function loadExcelJS() {
+  if (!excelJSModulePromise) {
+    excelJSModulePromise = import("exceljs");
+  }
+  const module = await excelJSModulePromise;
+  return module.default || module;
+}
+
 export function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState("");
@@ -78,19 +88,18 @@ export function AdminReports() {
   }, [semesterId, showToast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSemesters();
   }, [loadSemesters]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports();
   }, [loadReports]);
 
   async function exportXlsx(type) {
     try {
       setExporting(type);
-      const workbook = await buildWorkbook(type, {
+      const ExcelJS = await loadExcelJS();
+      const workbook = buildWorkbook(ExcelJS, type, {
         fillRates,
         gradeProgress,
         studentStatus,
@@ -276,9 +285,7 @@ function InlineLoading() {
   );
 }
 
-async function buildWorkbook(type, data) {
-  const ExcelJSModule = await import("exceljs");
-  const ExcelJS = ExcelJSModule.default || ExcelJSModule;
+function buildWorkbook(ExcelJS, type, data) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SE104 Student Management System";
   workbook.created = new Date();

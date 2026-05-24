@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, BookMarked, Users, CheckCircle2, XCircle, Loader2, Edit2 } from "lucide-react";
+import { Plus, Search, Trash2, BookMarked, Users, Loader2, Edit2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import adminSchedulingService from "../../services/adminSchedulingService";
 import adminCatalogService from "../../services/adminCatalogService";
 import adminAccountService from "../../services/adminAccountService";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import AdminModal from "../../components/AdminModal";
 
 export function CourseSections() {
   const [searchParams] = useSearchParams();
   const searchParam = searchParams.get("search") || "";
   const [sections, setSections] = useState([]);
   const [semesters, setSemesters] = useState([]);
-  const [rooms, setRooms] = useState([]);
   const [courses, setCourses] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [search, setSearch] = useState(searchParam);
@@ -23,6 +24,8 @@ export function CourseSections() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const createEmptyForm = () => ({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50, status: "OPEN" });
   const [form, setForm] = useState(createEmptyForm());
   const { showToast } = useToast();
@@ -93,14 +96,18 @@ export function CourseSections() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa lớp học phần này?")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminSchedulingService.deleteCourseSection(id);
+      setDeleting(true);
+      await adminSchedulingService.deleteCourseSection(deleteTarget.id);
       showToast("info", "Đã xóa", "Lớp học phần đã được xóa");
+      setDeleteTarget(null);
       fetchAll();
     } catch (error) {
       showToast("error", "Lỗi", "Không thể xóa lớp học phần");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -139,10 +146,12 @@ export function CourseSections() {
         </button>
       </div>
 
-      {showForm && (
-          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 20, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-              <h2 className="text-lg font-bold mb-4">{editId ? "Chỉnh sửa lớp học phần" : "Thêm lớp học phần mới"}</h2>
+      <AdminModal
+        open={showForm}
+        title={editId ? "Chỉnh sửa lớp học phần" : "Thêm lớp học phần mới"}
+        onClose={() => { setShowForm(false); setEditId(null); }}
+        maxWidth="max-w-2xl"
+      >
               <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Mã lớp HP *</label>
@@ -153,7 +162,7 @@ export function CourseSections() {
                       placeholder="VD: CSC501-L02"
                       className="w-full p-2 border rounded-lg text-sm"
                       readOnly={!!editId}
-                      style={!!editId ? { backgroundColor: "#f8fafc", cursor: "not-allowed" } : {}}
+                      style={editId ? { backgroundColor: "#f8fafc", cursor: "not-allowed" } : {}}
                       title={editId ? "Mã lớp HP không thể chỉnh sửa sau khi tạo" : "Mã lớp HP"}
                   />
                 </div>
@@ -204,9 +213,7 @@ export function CourseSections() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-      )}
+      </AdminModal>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
@@ -290,7 +297,7 @@ export function CourseSections() {
                           <button onClick={() => openEdit(s)} title="Chỉnh sửa" style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: "1px solid #e2e8f0", background: "none", cursor: "pointer" }}>
                             <Edit2 size={14} color="#2563eb" />
                           </button>
-                          <button onClick={() => handleDelete(s.id)} title="Xóa" style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: "1px solid #e2e8f0", background: "none", cursor: "pointer" }}>
+                          <button onClick={() => setDeleteTarget(s)} title="Xóa" style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: "1px solid #e2e8f0", background: "none", cursor: "pointer" }}>
                             <Trash2 size={14} color="#ef4444" />
                           </button>
                         </div>
@@ -303,6 +310,16 @@ export function CourseSections() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa lớp học phần?"
+        description={deleteTarget ? `Lớp "${deleteTarget.code}" sẽ bị xóa nếu không có đăng ký hoặc lịch học liên kết.` : ""}
+        confirmLabel="Xóa lớp"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

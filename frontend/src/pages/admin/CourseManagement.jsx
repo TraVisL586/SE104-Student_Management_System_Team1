@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Search, Edit2, Trash2, Plus, Loader2, Book } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminCatalogService from "../../services/adminCatalogService";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import AdminModal from "../../components/AdminModal";
 
 export function CourseManagement() {
   const [courses, setCourses] = useState([]);
@@ -10,6 +12,8 @@ export function CourseManagement() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   
   const [form, setForm] = useState({
     code: "",
@@ -79,15 +83,18 @@ export function CourseManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa môn học này?")) {
-      try {
-        await adminCatalogService.deleteCourse(id);
-        showToast("success", "Thành công", "Đã xóa môn học");
-        fetchData();
-      } catch (error) {
-        showToast("error", "Lỗi", "Không thể xóa môn học");
-      }
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await adminCatalogService.deleteCourse(deleteTarget.id);
+      showToast("success", "Thành công", "Đã xóa môn học");
+      setDeleteTarget(null);
+      fetchData();
+    } catch (error) {
+      showToast("error", "Lỗi", "Không thể xóa môn học");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -153,7 +160,7 @@ export function CourseManagement() {
                         <button onClick={() => openEdit(c)} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors">
                           <Edit2 size={15} />
                         </button>
-                        <button onClick={() => handleDelete(c.id)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
+                        <button onClick={() => setDeleteTarget(c)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -166,10 +173,12 @@ export function CourseManagement() {
         )}
       </div>
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 500, width: "100%" }}>
-            <h2 className="text-lg font-bold mb-4">{editingId ? "Sửa môn học" : "Thêm môn học mới"}</h2>
+      <AdminModal
+        open={showModal}
+        title={editingId ? "Sửa môn học" : "Thêm môn học mới"}
+        onClose={() => setShowModal(false)}
+        maxWidth="max-w-lg"
+      >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Khoa / Viện quản lý *</label>
@@ -198,9 +207,17 @@ export function CourseManagement() {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">Lưu thay đổi</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa môn học?"
+        description={deleteTarget ? `Môn "${deleteTarget.code} - ${deleteTarget.name}" sẽ bị xóa nếu không có dữ liệu liên kết.` : ""}
+        confirmLabel="Xóa môn học"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

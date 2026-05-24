@@ -4,6 +4,7 @@ import { useToast } from "../../context/ToastContext";
 import adminFinanceService from "../../services/adminFinanceService";
 import adminSchedulingService from "../../services/adminSchedulingService";
 import adminStudentService from "../../services/adminStudentService";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const EMPTY_FORM = {
   studentId: "",
@@ -28,6 +29,8 @@ export function TuitionManagement() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const { showToast } = useToast();
 
   const loadData = useCallback(async () => {
@@ -51,7 +54,6 @@ export function TuitionManagement() {
   }, [showToast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadData();
   }, [loadData]);
 
@@ -96,14 +98,18 @@ export function TuitionManagement() {
     }
   }
 
-  async function deleteRecord(id) {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa khoản học phí này?")) return;
+  async function deleteRecord() {
+    if (!deleteTarget) return;
     try {
-      await adminFinanceService.deleteTuitionRecord(id);
+      setDeleting(true);
+      await adminFinanceService.deleteTuitionRecord(deleteTarget.id);
       showToast("info", "Đã xóa", "Khoản học phí đã được xóa");
+      setDeleteTarget(null);
       await loadData();
     } catch (error) {
       showToast("error", "Lỗi", error.message || "Không thể xóa khoản học phí");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -241,7 +247,7 @@ export function TuitionManagement() {
                     <td className="px-4 py-3"><span className="px-2 py-1 rounded-lg text-xs font-bold" style={statusStyle(record.status)}>{record.status}</span></td>
                     <td className="px-4 py-3 text-sm text-slate-700">{record.dueDate || "—"}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => deleteRecord(record.id)} title="Xóa" className="w-8 h-8 inline-flex items-center justify-center border rounded-lg">
+                      <button onClick={() => setDeleteTarget(record)} title="Xóa" className="w-8 h-8 inline-flex items-center justify-center border rounded-lg">
                         <Trash2 size={14} color="#dc2626" />
                       </button>
                     </td>
@@ -274,6 +280,16 @@ export function TuitionManagement() {
           {payments.length === 0 && <p className="text-sm text-slate-500">Chưa có giao dịch</p>}
         </div>
       </section>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa khoản học phí?"
+        description={deleteTarget ? `Khoản học phí của "${deleteTarget.studentCode} - ${deleteTarget.studentName}" trong học kỳ ${deleteTarget.semesterCode || ""} sẽ bị xóa.` : ""}
+        confirmLabel="Xóa khoản học phí"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={deleteRecord}
+      />
     </div>
   );
 }
