@@ -12,6 +12,7 @@ export function CurriculumMgmt() {
   const [expanded, setExpanded] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [prerequisiteId, setPrerequisiteId] = useState("");
+  const [prerequisiteOpen, setPrerequisiteOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -60,11 +61,15 @@ export function CurriculumMgmt() {
   const openCourse = (course) => {
     setSelectedCourse(course);
     setPrerequisiteId("");
+    setPrerequisiteOpen(false);
   };
 
   const addPrerequisite = async (event) => {
     event.preventDefault();
-    if (!selectedCourse || !prerequisiteId) return;
+    if (!selectedCourse || !prerequisiteId) {
+      showToast("warning", "Thiếu thông tin", "Vui lòng chọn môn tiên quyết.");
+      return;
+    }
     try {
       setSubmitting(true);
       await adminCatalogService.addCoursePrerequisite(selectedCourse.id, Number(prerequisiteId));
@@ -102,6 +107,19 @@ export function CurriculumMgmt() {
       setExpanded([groupedCourses[0][0]]);
     }
   }, [expanded.length, groupedCourses]);
+
+  const availablePrerequisites = useMemo(() => {
+    if (!selectedCourse) return [];
+    return courses.filter(
+      (course) =>
+        course.id !== selectedCourse.id &&
+        !(selectedCourse.prerequisites || []).some((pre) => pre.id === course.id)
+    );
+  }, [courses, selectedCourse]);
+
+  const selectedPrerequisite = availablePrerequisites.find(
+    (course) => String(course.id) === String(prerequisiteId)
+  );
 
   return (
     <div className="space-y-5">
@@ -254,15 +272,46 @@ export function CurriculumMgmt() {
             <form onSubmit={addPrerequisite} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Môn tiên quyết *</label>
-                <select required value={prerequisiteId} onChange={(e) => setPrerequisiteId(e.target.value)} className="w-full p-2 border rounded-lg text-sm">
-                  <option value="">Chọn môn học</option>
-                  {courses
-                    .filter((course) => course.id !== selectedCourse.id && !(selectedCourse.prerequisites || []).some((pre) => pre.id === course.id))
-                    .map((course) => <option key={course.id} value={course.id}>{course.code} - {course.name}</option>)}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setPrerequisiteOpen((open) => !open)}
+                    className="flex w-full items-center justify-between rounded-lg border bg-white p-2 text-left text-sm"
+                  >
+                    <span className={selectedPrerequisite ? "text-slate-800" : "text-slate-400"}>
+                      {selectedPrerequisite
+                        ? `${selectedPrerequisite.code} - ${selectedPrerequisite.name}`
+                        : "Chọn môn học"}
+                    </span>
+                    <ChevronDown size={16} className="shrink-0 text-slate-400" />
+                  </button>
+
+                  {prerequisiteOpen && (
+                    <div className="absolute left-0 right-0 top-full z-[130] mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {availablePrerequisites.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-slate-500">Không còn môn học phù hợp</div>
+                      ) : (
+                        availablePrerequisites.map((course) => (
+                          <button
+                            key={course.id}
+                            type="button"
+                            onClick={() => {
+                              setPrerequisiteId(String(course.id));
+                              setPrerequisiteOpen(false);
+                            }}
+                            className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-emerald-50"
+                          >
+                            <span className="font-semibold text-emerald-700">{course.code}</span>
+                            <span> - {course.name}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex gap-3 justify-end pt-4 border-t">
-                <button type="button" onClick={() => setSelectedCourse(null)} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
+                <button type="button" onClick={() => { setSelectedCourse(null); setPrerequisiteOpen(false); }} className="px-4 py-2 border rounded-lg text-sm">Hủy</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Lưu</button>
               </div>
             </form>

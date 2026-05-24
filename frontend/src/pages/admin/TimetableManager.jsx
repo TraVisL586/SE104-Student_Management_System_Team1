@@ -21,19 +21,25 @@ import adminSchedulingService from "../../services/adminSchedulingService";
 
 const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 const SLOTS = [
-  { id: 1, label: "Tiết 1-3", time: "07:30-09:45" },
-  { id: 2, label: "Tiết 4-6", time: "10:00-12:15" },
-  { id: 3, label: "Tiết 7-9", time: "13:00-15:15" },
-  { id: 4, label: "Tiết 10-12", time: "15:30-17:45" },
+  { id: 1, label: "Tiết 1", session: "Sáng", time: "07:00-07:50", start: "07:00:00", end: "07:50:00" },
+  { id: 2, label: "Tiết 2", session: "Sáng", time: "07:55-08:45", start: "07:55:00", end: "08:45:00" },
+  { id: 3, label: "Tiết 3", session: "Sáng", time: "08:50-09:40", start: "08:50:00", end: "09:40:00" },
+  { id: 4, label: "Tiết 4", session: "Sáng", time: "09:50-10:40", start: "09:50:00", end: "10:40:00" },
+  { id: 5, label: "Tiết 5", session: "Sáng", time: "10:45-11:35", start: "10:45:00", end: "11:35:00" },
+  { id: 6, label: "Tiết 6", session: "Chiều", time: "13:00-13:50", start: "13:00:00", end: "13:50:00" },
+  { id: 7, label: "Tiết 7", session: "Chiều", time: "13:55-14:45", start: "13:55:00", end: "14:45:00" },
+  { id: 8, label: "Tiết 8", session: "Chiều", time: "14:50-15:40", start: "14:50:00", end: "15:40:00" },
+  { id: 9, label: "Tiết 9", session: "Chiều", time: "15:50-16:40", start: "15:50:00", end: "16:40:00" },
+  { id: 10, label: "Tiết 10", session: "Chiều", time: "16:45-17:35", start: "16:45:00", end: "17:35:00" },
 ];
 
 const COLORS = ["#dbeafe", "#e0f2fe", "#dcfce7", "#fef3c7"];
 const BORDERS = ["#2563eb", "#0284c7", "#16a34a", "#d97706"];
 const DEFAULT_ROOMS = ["A101", "A102", "B201", "B202", "C301"];
 const VIEW_OPTIONS = [
-  { id: "room", label: "View by Room", icon: DoorOpen },
-  { id: "lecturer", label: "View by Lecturer", icon: UserRound },
-  { id: "weekly", label: "View by Class/Weekly", icon: CalendarRange },
+  { id: "room", label: "Theo phòng", icon: DoorOpen },
+  { id: "lecturer", label: "Theo giảng viên", icon: UserRound },
+  { id: "weekly", label: "Theo lớp/tuần", icon: CalendarRange },
 ];
 
 const shell = {
@@ -62,14 +68,34 @@ const getCurrentWeek = () => {
 };
 
 const getSlotId = (startTime) => {
-  const value = String(startTime || "07:30");
-  if (value.startsWith("10")) return 2;
-  if (value.startsWith("13")) return 3;
-  if (value.startsWith("15")) return 4;
-  return 1;
+  const value = String(startTime || "07:00").slice(0, 5);
+  return SLOTS.find((slot) => slot.start.slice(0, 5) === value)?.id || 1;
 };
 
 const compactName = (value, fallback = "N/A") => value || fallback;
+
+const buildScheduleEntry = (section, scheduleItem, index = 0) => {
+  const colorIndex = index % COLORS.length;
+  return {
+    id: scheduleItem.id,
+    sectionId: section.id,
+    roomId: scheduleItem.roomId,
+    day: (scheduleItem.dayOfWeek || 1) - 1,
+    slot: getSlotId(scheduleItem.startTime),
+    code: section.code || section.courseCode || `SEC-${section.id}`,
+    name: section.courseName || section.name || "Chưa đặt tên môn học",
+    room: scheduleItem.roomCode || scheduleItem.roomName || "N/A",
+    gv: section.lecturerName || section.lecturer || "Chưa phân công giảng viên",
+    size: section.classSize || section.capacity || section.maxStudents || section.enrolledCount || "-",
+    color: COLORS[colorIndex],
+    border: BORDERS[colorIndex],
+  };
+};
+
+const buildSectionScheduleEntries = (section, startIndex = 0) =>
+  (section.schedules || []).map((scheduleItem, index) =>
+    buildScheduleEntry(section, scheduleItem, startIndex + index)
+  );
 
 export function TimetableManager() {
   const [schedule, setSchedule] = useState([]);
@@ -81,9 +107,9 @@ export function TimetableManager() {
   const [viewMode, setViewMode] = useState("weekly");
   const [filters, setFilters] = useState({
     year: "2025/2026",
-    semester: "Semester 2",
-    faculty: "All faculties",
-    building: "All buildings",
+    semester: "Học kỳ 2",
+    faculty: "Tất cả khoa",
+    building: "Tất cả tòa nhà",
   });
   const [form, setForm] = useState({ day: 0, slot: 1, roomId: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -117,28 +143,9 @@ export function TimetableManager() {
       }
       setRoomOptions(Array.isArray(roomsData) ? roomsData : []);
 
-      const formattedSchedules = [];
-      courseSections.forEach((sec) => {
-        if (!Array.isArray(sec.schedules)) return;
-
-        sec.schedules.forEach((sch) => {
-          const index = formattedSchedules.length % COLORS.length;
-          formattedSchedules.push({
-            id: sch.id,
-            sectionId: sec.id,
-            roomId: sch.roomId,
-            day: (sch.dayOfWeek || 1) - 1,
-            slot: getSlotId(sch.startTime),
-            code: sec.code || sec.courseCode || `SEC-${sec.id}`,
-            name: sec.courseName || sec.name || "Untitled course",
-            room: sch.roomCode || sch.roomName || "N/A",
-            gv: sec.lecturerName || sec.lecturer || "Unassigned lecturer",
-            size: sec.classSize || sec.capacity || sec.maxStudents || sec.enrolledCount || "-",
-            color: COLORS[index],
-            border: BORDERS[index],
-          });
-        });
-      });
+      const formattedSchedules = courseSections.flatMap((section, index) =>
+        buildSectionScheduleEntries(section, index)
+      );
 
       setSections(courseSections);
       setSchedule(formattedSchedules);
@@ -183,8 +190,8 @@ export function TimetableManager() {
         const other = entries.find((item) => item.id !== entry.id);
         details[entry.id] =
             type === "room"
-                ? `Room ${entry.room} overlapped with ${other?.code || "another section"}`
-                : `Lecturer ${entry.gv} overlapped with ${other?.code || "another section"}`;
+                ? `Phòng ${entry.room} bị trùng với ${other?.code || "lớp khác"}`
+                : `Giảng viên ${entry.gv} bị trùng với ${other?.code || "lớp khác"}`;
       });
     });
 
@@ -198,10 +205,10 @@ export function TimetableManager() {
               .map((section) => ({
                 id: section.id,
                 code: section.code || section.courseCode || `SEC-${section.id}`,
-                name: section.courseName || section.name || "Untitled course",
-                gv: section.lecturerName || section.lecturer || "Unassigned lecturer",
+                name: section.courseName || section.name || "Chưa đặt tên môn học",
+                gv: section.lecturerName || section.lecturer || "Chưa phân công giảng viên",
                 size: section.classSize || section.capacity || section.maxStudents || "-",
-                faculty: section.departmentName || section.facultyName || "General",
+                faculty: section.departmentName || section.facultyName || "Khoa",
               })),
       [sections]
   );
@@ -221,10 +228,10 @@ export function TimetableManager() {
 
   const stats = useMemo(
       () => [
-        { label: "Unassigned", value: unassignedCourses.length, color: "#b45309" },
-        { label: "Conflicts", value: conflicts.ids.size, color: "#dc2626" },
-        { label: "Rooms used", value: new Set(schedule.map((entry) => entry.room)).size, color: "#1d4ed8" },
-        { label: "Scheduled", value: schedule.length, color: "#047857" },
+        { label: "Chưa xếp", value: unassignedCourses.length, color: "#b45309" },
+        { label: "Trùng lịch", value: conflicts.ids.size, color: "#dc2626" },
+        { label: "Phòng đã dùng", value: new Set(schedule.map((entry) => entry.room)).size, color: "#1d4ed8" },
+        { label: "Đã xếp", value: schedule.length, color: "#047857" },
       ],
       [conflicts.ids.size, schedule, unassignedCourses.length]
   );
@@ -249,7 +256,7 @@ export function TimetableManager() {
 
     setSectionId(Number(droppedSectionId));
     openQuickAdd(day, slot, room);
-    showToast("info", "Ready to schedule", `Section ${droppedSectionId} selected. Confirm room before saving.`);
+    showToast("info", "Sẵn sàng xếp lịch", `Đã chọn lớp ${droppedSectionId}. Vui lòng xác nhận phòng trước khi lưu.`);
   }
 
   function addEntry(event) {
@@ -261,8 +268,8 @@ export function TimetableManager() {
     if (roomConflict) {
       showToast(
           "error",
-          "Conflict detected",
-          `Room ${roomConflict.room} overlapped with ${roomConflict.code}. Choose another room or time slot.`
+          "Trùng lịch",
+          `Phòng ${roomConflict.room} bị trùng với ${roomConflict.code}. Vui lòng chọn phòng hoặc tiết học khác.`
       );
       return;
     }
@@ -284,25 +291,32 @@ export function TimetableManager() {
         return;
       }
 
-      const slotTimes = {
-        1: { start: "07:30:00", end: "09:45:00" },
-        2: { start: "10:00:00", end: "12:15:00" },
-        3: { start: "13:00:00", end: "15:15:00" },
-        4: { start: "15:30:00", end: "17:45:00" },
-      };
+      const selectedSlot = SLOTS.find((slot) => slot.id === Number(form.slot));
+      if (!selectedSlot) {
+        showToast("warning", "Tiết học không hợp lệ", "Vui lòng chọn lại tiết học.");
+        return;
+      }
 
-      await adminSchedulingService.addCourseSectionSchedule(sectionId, {
+      const updatedSection = await adminSchedulingService.addCourseSectionSchedule(sectionId, {
         roomId: Number(form.roomId),
         dayOfWeek: Number(form.day) + 1,
-        startTime: slotTimes[form.slot].start,
-        endTime: slotTimes[form.slot].end,
+        startTime: selectedSlot.start,
+        endTime: selectedSlot.end,
       });
 
-      showToast("success", "Đã thêm vào TKB", `Section ${sectionId} - ${DAYS[form.day]}`);
+      showToast("success", "Đã thêm vào TKB", `Lớp ${sectionId} - ${DAYS[form.day]}`);
       setForm({ day: 0, slot: 1, roomId: "" });
       setShowForm(false);
       setSectionId(null);
-      loadTimetable();
+      if (updatedSection?.id) {
+        setSections((current) =>
+          current.map((section) => (section.id === updatedSection.id ? updatedSection : section))
+        );
+        setSchedule((current) => [
+          ...current.filter((entry) => entry.sectionId !== updatedSection.id),
+          ...buildSectionScheduleEntries(updatedSection, current.length),
+        ]);
+      }
     } catch (err) {
       const message = err?.data?.message || err?.message || "Không thể thêm vào thời khóa biểu.";
       showToast("error", "Lỗi thêm dữ liệu", message);
@@ -324,7 +338,17 @@ export function TimetableManager() {
       }
 
       showToast("info", "Đã xóa khỏi TKB", entry?.code || "Thành công");
-      loadTimetable();
+      setSchedule((current) => current.filter((item) => item.id !== id));
+      setSections((current) =>
+        current.map((section) =>
+          section.id === entry?.sectionId
+            ? {
+                ...section,
+                schedules: (section.schedules || []).filter((scheduleItem) => scheduleItem.id !== id),
+              }
+            : section
+        )
+      );
     } catch (err) {
       const message = err?.data?.message || err?.message || "Không thể xóa khỏi thời khóa biểu.";
       showToast("error", "Lỗi xóa dữ liệu", message);
@@ -338,7 +362,7 @@ export function TimetableManager() {
     return (
         <div
             key={entry.id}
-            title={hasConflict ? `Conflict detected: ${conflicts.details[entry.id]}` : "Occupied"}
+            title={hasConflict ? `Trùng lịch: ${conflicts.details[entry.id]}` : "Đã có lịch"}
             style={{
               position: "relative",
               minHeight: dense ? 70 : 82,
@@ -359,9 +383,9 @@ export function TimetableManager() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
             {[
-              ["Room", entry.room],
-              ["Lecturer", entry.gv],
-              ["Size", entry.size],
+              ["Phòng", entry.room],
+              ["GV", entry.gv],
+              ["Sĩ số", entry.size],
             ].map(([label, value]) => (
                 <span
                     key={label}
@@ -381,13 +405,13 @@ export function TimetableManager() {
           </div>
           {hasConflict && (
               <p style={{ marginTop: 5, color: "#b91c1c", fontSize: "0.6rem", fontWeight: 800 }}>
-                Conflict detected
+                Trùng lịch
               </p>
           )}
           <button
               onClick={() => removeEntry(entry.id)}
               disabled={submitting}
-              title="Remove schedule"
+              title="Xóa lịch học"
               style={{
                 position: "absolute",
                 top: 6,
@@ -413,7 +437,7 @@ export function TimetableManager() {
           onClick={() => openQuickAdd(day, slot, room)}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => handleDrop(event, day, slot, room)}
-          title="Available - drop an unassigned course here"
+          title="Còn trống - thả lớp chưa xếp vào đây"
           style={{
             minHeight: 72,
             border: "1.5px dashed #cbd5e1",
@@ -428,7 +452,7 @@ export function TimetableManager() {
           }}
       >
         <Plus size={14} color="#94a3b8" />
-        <span style={{ fontSize: "0.62rem", fontWeight: 800 }}>Available</span>
+        <span style={{ fontSize: "0.62rem", fontWeight: 800 }}>Trống</span>
       </div>
   );
 
@@ -437,7 +461,7 @@ export function TimetableManager() {
         <thead>
         <tr style={{ background: "#0f2f4a" }}>
           <th style={{ width: 112, padding: "11px 12px", textAlign: "left", color: "#bfdbfe", fontSize: "0.68rem", fontWeight: 900 }}>
-            Time slot
+            Tiết học
           </th>
           {DAYS.map((day, index) => (
               <th key={day} style={{ padding: "11px 8px", color: "#fff", textAlign: "center", fontSize: "0.72rem", fontWeight: 900 }}>
@@ -452,7 +476,7 @@ export function TimetableManager() {
             <tr key={slot.id}>
               <td style={{ padding: "9px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
                 <p style={{ color: "#0f172a", fontSize: "0.72rem", fontWeight: 900 }}>{slot.label}</p>
-                <p style={{ color: "#64748b", fontSize: "0.62rem" }}>{slot.time}</p>
+                <p style={{ color: "#64748b", fontSize: "0.62rem" }}>{slot.session} · {slot.time}</p>
               </td>
               {DAYS.map((_, dayIndex) => {
                 const entries = entriesForWeeklyCell(dayIndex, slot.id);
@@ -480,18 +504,18 @@ export function TimetableManager() {
           {SLOTS.map((slot) => (
               <th key={slot.id} style={{ padding: "11px 8px", color: "#fff", textAlign: "center", fontSize: "0.72rem", fontWeight: 900 }}>
                 {slot.label}
-                <span style={{ display: "block", marginTop: 2, color: "#bfdbfe", fontSize: "0.62rem" }}>{slot.time}</span>
+                <span style={{ display: "block", marginTop: 2, color: "#bfdbfe", fontSize: "0.62rem" }}>{slot.session} · {slot.time}</span>
               </th>
           ))}
         </tr>
         </thead>
         <tbody>
-        {(resources.length ? resources : ["Unassigned lecturer"]).map((resource) => (
+        {(resources.length ? resources : ["Chưa phân công giảng viên"]).map((resource) => (
             <tr key={resource}>
               <td style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
                 <p style={{ color: "#0f172a", fontSize: "0.76rem", fontWeight: 900 }}>{resource}</p>
                 <p style={{ color: "#64748b", fontSize: "0.62rem" }}>
-                  {schedule.filter((entry) => entry[field] === resource).length} occupied slots
+                  {schedule.filter((entry) => entry[field] === resource).length} tiết đã xếp
                 </p>
               </td>
               {SLOTS.map((slot) => {
@@ -520,9 +544,9 @@ export function TimetableManager() {
       <div style={{ display: "grid", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ color: "#0f172a", fontSize: "1.55rem", fontWeight: 900 }}>Timetable Management</h1>
+            <h1 style={{ color: "#0f172a", fontSize: "1.55rem", fontWeight: 900 }}>Quản lý lịch học</h1>
             <p style={{ color: "#64748b", fontSize: "0.84rem", marginTop: 3 }}>
-              Conflict-aware scheduling dashboard - Week {week}/28
+              Bảng xếp lịch có kiểm tra trùng phòng và giảng viên - Tuần {week}/28
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -530,13 +554,13 @@ export function TimetableManager() {
               <ChevronLeft size={16} />
             </button>
             <span style={{ minWidth: 148, textAlign: "center", color: "#0f172a", fontSize: "0.84rem", fontWeight: 900 }}>
-            Week {week}: {dates[0]} - {dates[5]}/2026
+            Tuần {week}: {dates[0]} - {dates[5]}/2026
           </span>
             <button onClick={() => setWeek((value) => Math.min(28, value + 1))} disabled={loading} style={navButton}>
               <ChevronRight size={16} />
             </button>
             <button onClick={() => setShowForm((value) => !value)} disabled={submitting || loading} style={primaryButton}>
-              <Plus size={15} /> Add schedule
+              <Plus size={15} /> Thêm lịch
             </button>
           </div>
         </div>
@@ -544,16 +568,16 @@ export function TimetableManager() {
         <div style={{ ...shell.card, padding: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(140px, 1fr))", gap: 10 }}>
             {[
-              ["Academic Year", "year", ["2025/2026", "2026/2027"]],
-              ["Semester", "semester", ["Semester 1", "Semester 2", "Summer"]],
-              ["Week", "week", [`Week ${week}`, "Current week", "All weeks"]],
-              ["Faculty/Department", "faculty", ["All faculties", "Computer Science", "Business", "Engineering"]],
-              ["Building", "building", ["All buildings", "Building A", "Building B", "Building C"]],
+              ["Năm học", "year", ["2025/2026", "2026/2027"]],
+              ["Học kỳ", "semester", ["Học kỳ 1", "Học kỳ 2", "Hè"]],
+              ["Tuần", "week", [`Tuần ${week}`, "Tuần hiện tại", "Tất cả tuần"]],
+              ["Khoa", "faculty", ["Tất cả khoa", "Công nghệ thông tin", "Kinh tế", "Kỹ thuật"]],
+              ["Tòa nhà", "building", ["Tất cả tòa nhà", "Tòa A", "Tòa B", "Tòa C"]],
             ].map(([label, key, options]) => (
                 <div key={key}>
                   <label style={shell.label}>{label}</label>
                   <select
-                      value={key === "week" ? `Week ${week}` : filters[key]}
+                      value={key === "week" ? `Tuần ${week}` : filters[key]}
                       onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.value }))}
                       style={control}
                   >
@@ -601,10 +625,10 @@ export function TimetableManager() {
 
         {showForm && (
             <div style={{ ...shell.card, padding: 16 }}>
-              <p style={{ color: "#0f172a", fontSize: "0.92rem", fontWeight: 900, marginBottom: 12 }}>Schedule selected section</p>
+              <p style={{ color: "#0f172a", fontSize: "0.92rem", fontWeight: 900, marginBottom: 12 }}>Xếp lịch cho lớp học phần</p>
               <form onSubmit={addEntry} style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(130px, 1fr))", gap: 12 }}>
                 <div>
-                  <label style={shell.label}>Day</label>
+                  <label style={shell.label}>Thứ</label>
                   <select value={form.day} onChange={(event) => setForm((current) => ({ ...current, day: event.target.value }))} style={control}>
                     {DAYS.map((day, index) => (
                         <option key={day} value={index}>
@@ -614,11 +638,11 @@ export function TimetableManager() {
                   </select>
                 </div>
                 <div>
-                  <label style={shell.label}>Time slot</label>
+                  <label style={shell.label}>Tiết học</label>
                   <select value={form.slot} onChange={(event) => setForm((current) => ({ ...current, slot: event.target.value }))} style={control}>
                     {SLOTS.map((slot) => (
                         <option key={slot.id} value={slot.id}>
-                          {slot.label} ({slot.time})
+                          {slot.label} - {slot.session} ({slot.time})
                         </option>
                     ))}
                   </select>
@@ -657,10 +681,10 @@ export function TimetableManager() {
                 </div>
                 <div style={{ display: "flex", alignItems: "end", gap: 8 }}>
                   <button type="button" onClick={() => setShowForm(false)} style={secondaryButton}>
-                    Cancel
+                    Hủy
                   </button>
                   <button type="submit" disabled={submitting} style={primaryButton}>
-                    Save
+                    Lưu
                   </button>
                 </div>
               </form>
@@ -674,7 +698,7 @@ export function TimetableManager() {
               <aside style={{ ...shell.card, overflow: "hidden", background: "#0f2f4a", color: "#e0f2fe" }}>
                 <button
                     onClick={() => setSidebarOpen((value) => !value)}
-                    title={sidebarOpen ? "Collapse unassigned courses" : "Expand unassigned courses"}
+                    title={sidebarOpen ? "Thu gọn lớp chưa xếp lịch" : "Mở rộng lớp chưa xếp lịch"}
                     style={{
                       width: "100%",
                       minHeight: 44,
@@ -688,14 +712,14 @@ export function TimetableManager() {
                       fontWeight: 900,
                     }}
                 >
-                  {sidebarOpen && <span>Unassigned Courses</span>}
+                  {sidebarOpen && <span>Lớp chưa xếp lịch</span>}
                   <ChevronsLeft size={16} style={{ transform: sidebarOpen ? "none" : "rotate(180deg)" }} />
                 </button>
                 {sidebarOpen && (
                     <div style={{ padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: "#123c5a", marginBottom: 10 }}>
                         <Search size={14} color="#93c5fd" />
-                        <span style={{ color: "#bfdbfe", fontSize: "0.72rem" }}>{unassignedCourses.length} courses still need a slot</span>
+                        <span style={{ color: "#bfdbfe", fontSize: "0.72rem" }}>{unassignedCourses.length} lớp cần xếp tiết học</span>
                       </div>
                       <div style={{ display: "grid", gap: 8, maxHeight: 560, overflowY: "auto", paddingRight: 2 }}>
                         {unassignedCourses.length ? (
@@ -729,7 +753,7 @@ export function TimetableManager() {
                             ))
                         ) : (
                             <div style={{ padding: 12, borderRadius: 10, background: "#123c5a", color: "#bfdbfe", fontSize: "0.76rem" }}>
-                              No missed courses. Every section has at least one scheduled slot.
+                              Tất cả lớp học phần đã có ít nhất một tiết học.
                             </div>
                         )}
                       </div>
@@ -741,23 +765,23 @@ export function TimetableManager() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#047857", fontSize: "0.72rem", fontWeight: 900 }}>
-                  <Clock3 size={13} /> Available
+                  <Clock3 size={13} /> Trống
                 </span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#1d4ed8", fontSize: "0.72rem", fontWeight: 900 }}>
-                  <Building2 size={13} /> Occupied
+                  <Building2 size={13} /> Đã xếp
                 </span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#dc2626", fontSize: "0.72rem", fontWeight: 900 }}>
-                  <AlertTriangle size={13} /> Conflict detected
+                  <AlertTriangle size={13} /> Trùng lịch
                 </span>
                   </div>
                   <p style={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 800 }}>
-                    Drop unassigned courses into available cells, then confirm section and room before saving.
+                    Kéo lớp chưa xếp vào ô trống, sau đó xác nhận lớp học phần và phòng trước khi lưu.
                   </p>
                 </div>
                 <div className="overflow-x-auto">
                   {viewMode === "weekly" && renderWeeklyGrid()}
-                  {viewMode === "room" && renderResourceGrid(rooms, "room", "Room")}
-                  {viewMode === "lecturer" && renderResourceGrid(lecturers, "gv", "Lecturer")}
+                  {viewMode === "room" && renderResourceGrid(rooms, "room", "Phòng")}
+                  {viewMode === "lecturer" && renderResourceGrid(lecturers, "gv", "Giảng viên")}
                 </div>
               </section>
             </div>
@@ -766,7 +790,7 @@ export function TimetableManager() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe" }}>
           <AlertTriangle size={14} color="#2563eb" />
           <p style={{ color: "#1e40af", fontSize: "0.76rem", fontWeight: 700 }}>
-            Bright red cells indicate room or lecturer overlap. Hover a conflicted card to see the exact error.
+            Ô màu đỏ cho biết lịch bị trùng phòng hoặc giảng viên. Di chuột lên thẻ bị trùng để xem chi tiết.
           </p>
         </div>
       </div>
