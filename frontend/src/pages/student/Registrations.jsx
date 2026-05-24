@@ -5,7 +5,6 @@ import { useToast } from "../../context/ToastContext";
 import courseRegistrationService from "../../services/courseRegistrationService";
 
 const MAX_TC = 24;
-const CURRENT_SEMESTER_ID = 2;
 const SEARCH_DEBOUNCE_MS = 400;
 const ACTIVE_STATUSES = new Set(["ENROLLED", "WAITLISTED"]);
 
@@ -34,12 +33,17 @@ export function Registrations() {
     [registrations],
   );
 
+  const activeSemesterId = useMemo(
+    () => cart[0]?.semesterId || openSections[0]?.semesterId || activeRegistrations[0]?.semesterId || null,
+    [activeRegistrations, cart, openSections],
+  );
+
   const enrolledTC = useMemo(
     () =>
       activeRegistrations
-        .filter((r) => r.semesterId === CURRENT_SEMESTER_ID)
+        .filter((r) => !activeSemesterId || r.semesterId === activeSemesterId)
         .reduce((s, r) => s + (r.credits || 0), 0),
-    [activeRegistrations],
+    [activeRegistrations, activeSemesterId],
   );
 
   const totalTC = enrolledTC + cartTC;
@@ -68,12 +72,12 @@ export function Registrations() {
   }, [openSections, search, khoa]);
 
   const semesterLabel = useMemo(() => {
-    const found = openSections.find((s) => s.semesterId === CURRENT_SEMESTER_ID);
+    const found = openSections.find((s) => s.semesterId === activeSemesterId) || openSections[0];
     if (found?.semesterName && found?.semesterCode) return `${found.semesterName} — ${found.semesterCode}`;
     if (found?.semesterName) return found.semesterName;
     if (found?.semesterCode) return found.semesterCode;
-    return `Học kỳ ${CURRENT_SEMESTER_ID}`;
-  }, [openSections]);
+    return "Các học kỳ đang mở";
+  }, [activeSemesterId, openSections]);
 
   const loadRegistrations = useCallback(async () => {
     try {
@@ -91,7 +95,6 @@ export function Registrations() {
     setSectionError("");
     try {
       const data = await courseRegistrationService.getOpenSections({
-        semesterId: CURRENT_SEMESTER_ID,
         keyword: keyword.trim() || undefined,
       });
       setOpenSections(Array.isArray(data) ? data : []);
@@ -146,6 +149,10 @@ export function Registrations() {
     }
     if (cart.some((c) => c.courseId === section.courseId)) {
       showToast("warning", "Đã chọn", `${section.courseName} đã được chọn trước đó.`);
+      return;
+    }
+    if (cart.length > 0 && cart[0].semesterId && section.semesterId && cart[0].semesterId !== section.semesterId) {
+      showToast("warning", "Khác học kỳ", "Vui lòng xác nhận đăng ký từng học kỳ riêng.");
       return;
     }
     if (totalTC + (section.credits || 0) > MAX_TC) {

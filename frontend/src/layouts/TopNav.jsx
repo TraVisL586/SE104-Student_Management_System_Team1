@@ -32,14 +32,6 @@ const ROLE_COLORS = {
   PUBLIC:   { bg: "#334155", color: "#64748b", light: "#f1f5f9" },
 };
 
-const DEMO_USERS = {
-  STUDENT:  { name: "Nguyễn Thị Lan",   id: "SV.2023.00847", avatarInitials: "NL" },
-  LECTURER: { name: "GS. Nguyễn Văn An", id: "GV.2015.00124", avatarInitials: "NA" },
-  ADMIN:    { name: "Trần Minh Khoa",    id: "AD.2020.00031", avatarInitials: "TK" },
-  ACADEMIC_ADVISOR:  { name: "TS. Phạm Thị Hoa",  id: "TV.2018.00056", avatarInitials: "PH" },
-  PUBLIC:   { name: "Khách",             id: "PUBLIC",        avatarInitials: "KH" },
-};
-
 const SWITCH_ROLES = [
   { role: "STUDENT",  label: "Sinh viên",         icon: BookOpen },
   { role: "LECTURER", label: "Giảng viên",         icon: Users },
@@ -59,6 +51,21 @@ const removeDiacritics = (str) => {
     .replace(/Đ/g, "D")
     .toLowerCase();
 };
+
+const getCourseCode = (course) => course?.code || course?.courseCode || "";
+const getCourseName = (course) => course?.name || course?.courseName || getCourseCode(course);
+const getCourseCredits = (course) => course?.credits || course?.courseCredits || 0;
+
+const getStudentCode = (student) => student?.studentCode || student?.code || "";
+const getStudentName = (student) => student?.fullName || student?.studentName || student?.name || "Sinh viên";
+const getStudentEmail = (student) => student?.email || "";
+const getStudentMeta = (student) =>
+  student?.departmentName ||
+  student?.department ||
+  student?.programName ||
+  student?.programCode ||
+  student?.academicStatus ||
+  "Thông tin sinh viên";
 
 const getIconComponent = (name) => {
   const icons = {
@@ -301,20 +308,20 @@ export function TopNav({ onMenuToggle }) {
     }
 
     // 2. Match courses
-    const matchedCourses = courses.filter(c => 
-      removeDiacritics(c.code).includes(term) ||
-      removeDiacritics(c.name).includes(term)
+    const matchedCourses = courses.filter(c =>
+      removeDiacritics(getCourseCode(c)).includes(term) ||
+      removeDiacritics(getCourseName(c)).includes(term)
     ).slice(0, 5).map(c => ({
       type: "course",
-      title: c.name,
-      subtitle: `${c.code} • ${c.credits} tín chỉ`,
+      title: getCourseName(c),
+      subtitle: `${getCourseCode(c)} • ${getCourseCredits(c)} tín chỉ`,
       iconName: "BookOpen",
       path: role === "STUDENT" 
-        ? `/student/registrations?search=${encodeURIComponent(c.code)}`
+        ? `/student/registrations?search=${encodeURIComponent(getCourseCode(c))}`
         : role === "ADMIN"
-        ? `/admin/courses?search=${encodeURIComponent(c.code)}`
+        ? `/admin/courses?search=${encodeURIComponent(getCourseCode(c))}`
         : role === "LECTURER"
-        ? `/lecturer/roster?search=${encodeURIComponent(c.code)}`
+        ? `/lecturer/roster?search=${encodeURIComponent(getCourseCode(c))}`
         : `/`
     }));
     if (matchedCourses.length > 0) {
@@ -323,20 +330,20 @@ export function TopNav({ onMenuToggle }) {
 
     // 3. Match students (only for ADMIN, ACADEMIC_ADVISOR, LECTURER)
     if (role === "ADMIN" || role === "ACADEMIC_ADVISOR" || role === "LECTURER") {
-      const matchedStudents = students.filter(s => 
-        removeDiacritics(s.studentCode).includes(term) ||
-        removeDiacritics(s.name).includes(term) ||
-        removeDiacritics(s.email).includes(term)
+      const matchedStudents = students.filter(s =>
+        removeDiacritics(getStudentCode(s)).includes(term) ||
+        removeDiacritics(getStudentName(s)).includes(term) ||
+        removeDiacritics(getStudentEmail(s)).includes(term)
       ).slice(0, 5).map(s => ({
         type: "student",
-        title: s.name,
-        subtitle: `${s.studentCode} • ${s.department || "Khoa"}`,
+        title: getStudentName(s),
+        subtitle: `${getStudentCode(s)} • ${getStudentMeta(s)}`,
         iconName: "User",
         path: role === "ADMIN" 
-          ? `/admin/student-status?search=${encodeURIComponent(s.studentCode)}`
+          ? `/admin/student-status?search=${encodeURIComponent(getStudentCode(s))}`
           : role === "ACADEMIC_ADVISOR"
-          ? `/advisor/profiles?search=${encodeURIComponent(s.studentCode)}`
-          : `/lecturer/roster?search=${encodeURIComponent(s.studentCode)}`
+          ? `/advisor/profiles?search=${encodeURIComponent(getStudentCode(s))}`
+          : `/lecturer/roster?search=${encodeURIComponent(getStudentCode(s))}`
       }));
       if (matchedStudents.length > 0) {
         matchedSuggestions.push({ category: "Sinh viên", items: matchedStudents });

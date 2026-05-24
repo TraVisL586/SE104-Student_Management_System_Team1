@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Award, Download, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import studentService from "../../services/studentService";
@@ -25,11 +25,7 @@ export function Grades() {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchGrades();
-  }, []);
-
-  const fetchGrades = async () => {
+  const fetchGrades = useCallback(async () => {
     try {
       setLoading(true);
       const [gradesData, registrationsData] = await Promise.all([
@@ -53,12 +49,16 @@ export function Grades() {
       });
 
       setGrades(mappedGrades || []);
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải bảng điểm");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    void fetchGrades();
+  }, [fetchGrades]);
 
   // Calculate statistics
   let totalCredits = 0;
@@ -125,6 +125,7 @@ export function Grades() {
           </p>
         </div>
         <button
+          onClick={() => showToast("info", "Chưa hỗ trợ", "Tính năng tải bảng điểm PDF chưa được triển khai.")}
           className="flex items-center gap-2 px-4 py-2 rounded-xl"
           style={{ backgroundColor: "#1a3461", color: "white", border: "none", cursor: "pointer", fontSize: "0.82rem" }}
         >
@@ -203,7 +204,7 @@ export function Grades() {
                       <table className="w-full">
                         <thead>
                           <tr style={{ backgroundColor: "#fafbfc", borderBottom: "1px solid #f1f5f9" }}>
-                            {["Mã MH", "Tên môn học", "Tín chỉ", "Quá trình (20%)", "Giữa kỳ (30%)", "Cuối kỳ (50%)", "Tổng kết", "Xếp loại"].map((h) => (
+                            {["Mã MH", "Tên môn học", "Tín chỉ", "Quá trình (10%)", "Giữa kỳ (30%)", "Cuối kỳ (60%)", "Tổng kết", "Xếp loại"].map((h) => (
                               <th key={h} className="text-left px-5 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
                             ))}
                           </tr>

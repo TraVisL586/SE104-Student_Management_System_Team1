@@ -8,6 +8,7 @@ import com.example.backend.dto.request.AcademicRequestDecisionRequest;
 import com.example.backend.dto.request.AdvisorAssignmentRequest;
 import com.example.backend.dto.response.AcademicRequestResponse;
 import com.example.backend.dto.response.AdvisorStudentResponse;
+import com.example.backend.dto.response.GradeResponse;
 import com.example.backend.dto.response.StudentAdvisingProfileResponse;
 import com.example.backend.entity.*;
 import com.example.backend.repository.*;
@@ -30,6 +31,7 @@ public class AcademicAdvisingService {
     private final AcademicRequestRepository academicRequestRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentGradeRepository gradeRepository;
+    private final NotificationEmailService notificationEmailService;
 
     @Transactional
     public AdvisorStudentResponse assignAdvisor(AdvisorAssignmentRequest request) {
@@ -141,6 +143,7 @@ public class AcademicAdvisingService {
         academicRequest.setAdvisorNote(request.getAdvisorNote());
         academicRequest.setReviewedAt(LocalDateTime.now());
         academicRequestRepository.save(academicRequest);
+        notificationEmailService.sendAcademicRequestDecision(academicRequest);
 
         return mapAcademicRequest(academicRequest);
     }
@@ -179,6 +182,41 @@ public class AcademicAdvisingService {
         response.setPassedCredits(passedCredits);
         response.setFailedCourses(failedCourses);
         response.setGpa(gpa);
+        response.setAcademicHistory(enrollments.stream()
+                .map(this::mapAdvisingGrade)
+                .toList());
+
+        return response;
+    }
+
+    private GradeResponse mapAdvisingGrade(Enrollment enrollment) {
+        CourseSection section = enrollment.getCourseSection();
+        EnrollmentGrade grade = gradeRepository.findByEnrollmentId(enrollment.getId()).orElse(null);
+
+        GradeResponse response = new GradeResponse();
+        response.setEnrollmentId(enrollment.getId());
+
+        response.setStudentId(enrollment.getStudent().getId());
+        response.setStudentCode(enrollment.getStudent().getStudentCode());
+        response.setStudentName(enrollment.getStudent().getFullName());
+
+        response.setCourseSectionId(section.getId());
+        response.setCourseSectionCode(section.getCode());
+
+        response.setCourseId(section.getCourse().getId());
+        response.setCourseCode(section.getCourse().getCode());
+        response.setCourseName(section.getCourse().getName());
+
+        if (grade != null) {
+            response.setId(grade.getId());
+            response.setProcessScore(grade.getProcessScore());
+            response.setMidtermScore(grade.getMidtermScore());
+            response.setFinalScore(grade.getFinalScore());
+            response.setTotalScore(grade.getTotalScore());
+            response.setStatus(grade.getStatus());
+            response.setPublishedAt(grade.getPublishedAt());
+            response.setUpdatedAt(grade.getUpdatedAt());
+        }
 
         return response;
     }

@@ -197,6 +197,51 @@ export function StudentProfiles() {
                 </div>
               </div>
 
+              <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+                <div className="px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b" }}>Lịch sử học tập</p>
+                  <p style={{ fontSize: "0.72rem", color: "#64748b", marginTop: 2 }}>
+                    Các học phần sinh viên đã hoặc đang tham gia
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full" style={{ minWidth: 720 }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc" }}>
+                        {["Mã HP", "Môn học", "Điểm QT", "Giữa kỳ", "Cuối kỳ", "Tổng", "Trạng thái"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-[0.65rem] font-bold uppercase text-slate-500">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(profile.academicHistory || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="px-4 py-6 text-center text-sm text-slate-500">
+                            Chưa có lịch sử học tập
+                          </td>
+                        </tr>
+                      ) : (
+                        profile.academicHistory.map((item) => (
+                          <tr key={item.enrollmentId} style={{ borderTop: "1px solid #f1f5f9" }}>
+                            <td className="px-4 py-3 text-xs font-semibold text-blue-700">{item.courseCode || "—"}</td>
+                            <td className="px-4 py-3 text-sm font-medium text-slate-800">{item.courseName || item.courseSectionCode || "—"}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{item.processScore ?? "—"}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{item.midtermScore ?? "—"}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{item.finalScore ?? "—"}</td>
+                            <td className="px-4 py-3 text-sm font-bold text-slate-900">{item.totalScore ?? "—"}</td>
+                            <td className="px-4 py-3">
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                {item.status || "CHƯA CÓ ĐIỂM"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           ) : (
             <div className="rounded-2xl p-12 text-center" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
