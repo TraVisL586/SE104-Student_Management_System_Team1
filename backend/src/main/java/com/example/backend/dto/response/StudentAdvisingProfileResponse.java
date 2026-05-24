@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,4 +20,5 @@ public class StudentAdvisingProfileResponse {
     private Integer passedCredits;
     private BigDecimal gpa;
     private Integer failedCourses;
+    private List<GradeResponse> academicHistory;
 }

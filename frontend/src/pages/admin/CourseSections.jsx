@@ -37,16 +37,14 @@ export function CourseSections() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [secData, semData, rmData, courseData, accountData] = await Promise.all([
+      const [secData, semData, courseData, accountData] = await Promise.all([
         adminSchedulingService.getCourseSections(),
         adminSchedulingService.getSemesters(),
-        adminSchedulingService.getRooms(),
         adminCatalogService.getCourses(),
         adminAccountService.getAllAccounts(),
       ]);
       setSections(Array.isArray(secData) ? secData : []);
       setSemesters(Array.isArray(semData) ? semData : []);
-      setRooms(Array.isArray(rmData) ? rmData : []);
       setCourses(Array.isArray(courseData) ? courseData : []);
       setLecturers(Array.isArray(accountData) ? accountData.filter((a) => a.profileType === "LECTURER") : []);
     } catch (error) {

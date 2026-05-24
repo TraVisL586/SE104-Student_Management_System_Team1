@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, XCircle, Clock, MessageSquare, Search, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, MessageSquare, Search, Loader2, RefreshCw, AlertTriangle, Paperclip } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import advisorService from "../../services/advisorService";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -168,6 +168,16 @@ export function RequestProcessing() {
                     </p>
                     <p style={{ fontSize: "0.8rem", fontWeight: "600", color: "#1e293b", marginTop: 4 }}>{req.title}</p>
                     <p style={{ fontSize: "0.8rem", color: "#475569", marginTop: 2, lineHeight: 1.5 }}>{req.content}</p>
+                    {req.attachmentUrl && (
+                      <a
+                        href={req.attachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        <Paperclip size={13} /> Xem minh chứng
+                      </a>
+                    )}
                     {req.advisorNote && (
                       <div className="mt-2 p-2 bg-slate-50 border rounded text-xs text-slate-600">
                         <span className="font-semibold text-slate-700">Ghi chú của Cố vấn: </span>{req.advisorNote}

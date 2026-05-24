@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FileText, Plus, Clock, CheckCircle2, XCircle, AlertCircle, Send, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import academicRequestService from "../../services/academicRequestService";
@@ -20,24 +20,24 @@ export function AcademicRequest() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState({ type: REQUEST_TYPES[0].value, title: "", reason: "", urgent: false });
+  const [form, setForm]         = useState({ type: REQUEST_TYPES[0].value, title: "", reason: "", attachmentUrl: "", urgent: false });
   const { showToast }           = useToast();
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
       const data = await academicRequestService.getMyRequests();
       setRequests(data);
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải lịch sử yêu cầu");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    void fetchRequests();
+  }, [fetchRequests]);
 
   async function submit(e) {
     e.preventDefault();
@@ -50,9 +50,14 @@ export function AcademicRequest() {
       return;
     }
     try {
-      await academicRequestService.createRequest(form.type, form.title, form.reason);
+      await academicRequestService.createRequest(
+        form.type,
+        form.title,
+        form.reason,
+        form.attachmentUrl.trim() || null
+      );
       showToast("success", "Đã gửi yêu cầu!", "Yêu cầu của bạn đang được xử lý.");
-      setForm({ type: REQUEST_TYPES[0].value, title: "", reason: "", urgent: false });
+      setForm({ type: REQUEST_TYPES[0].value, title: "", reason: "", attachmentUrl: "", urgent: false });
       setShowForm(false);
       fetchRequests();
     } catch (error) {
@@ -120,6 +125,18 @@ export function AcademicRequest() {
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.85rem", color: "#334155", outline: "none", resize: "vertical" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
+                Link minh chứng
+              </label>
+              <input
+                type="url"
+                placeholder="https://..."
+                value={form.attachmentUrl}
+                onChange={(e) => setForm({ ...form, attachmentUrl: e.target.value })}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.85rem", color: "#334155", outline: "none" }}
               />
             </div>
             <div className="flex items-center gap-3">
@@ -200,13 +217,18 @@ export function AcademicRequest() {
                       </span>
                     </div>
                     <p style={{ fontSize: "0.78rem", color: "#475569", marginTop: 6 }}>{req.content}</p>
+                    {req.attachmentUrl && (
+                      <a href={req.attachmentUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-blue-700 hover:underline">
+                        Xem minh chứng
+                      </a>
+                    )}
                     <div className="flex items-center gap-4 mt-2 flex-wrap">
                       <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>
                         Ngày nộp: {new Date(req.createdAt).toLocaleDateString("vi-VN")}
                       </span>
-                      {req.decisionDate && (
+                      {req.reviewedAt && (
                         <span style={{ fontSize: "0.7rem", color: "#64748b" }}>
-                          Xử lý: {new Date(req.decisionDate).toLocaleDateString("vi-VN")} {req.decisionNote && ` - ${req.decisionNote}`}
+                          Xử lý: {new Date(req.reviewedAt).toLocaleDateString("vi-VN")} {req.advisorNote && ` - ${req.advisorNote}`}
                         </span>
                       )}
                     </div>

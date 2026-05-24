@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
-import { Save, AlertTriangle, CheckCircle2, Info, Loader2, Lock, Unlock, Send } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Save, Info, Loader2, Lock, Unlock, Send } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import lecturerService from "../../services/lecturerService";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 function calcFinal(processScore, midtermScore, finalScore) {
   const p = parseFloat(processScore);
   const m = parseFloat(midtermScore);
   const f = parseFloat(finalScore);
   if (isNaN(p) || isNaN(m) || isNaN(f)) return null;
-  return (p * 0.2 + m * 0.3 + f * 0.5).toFixed(1); // Typical weight 20/30/50, adjust as needed
+  return (p * 0.1 + m * 0.3 + f * 0.6).toFixed(1);
 }
 
 function validateScore(val) {
@@ -35,19 +36,31 @@ export function GradeEntry() {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockReason, setUnlockReason] = useState("");
   const [unlockEnrollmentId, setUnlockEnrollmentId] = useState(null);
+  const [publishTarget, setPublishTarget] = useState(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
-
-  useEffect(() => {
-    if (selected) {
-      fetchGrades(selected);
+  const fetchGrades = useCallback(async (sectionId) => {
+    try {
+      setLoadingGrades(true);
+      const data = await lecturerService.getGrades(sectionId);
+      // Data might contain processScore, midtermScore, finalScore
+      setGrades(data.map(g => ({
+        ...g,
+        isPublished: g.isPublished ?? g.status === "PUBLISHED",
+        processScore: g.processScore != null ? g.processScore : "",
+        midtermScore: g.midtermScore != null ? g.midtermScore : "",
+        finalScore: g.finalScore != null ? g.finalScore : "",
+        _original: { ...g } // Store original to track changes
+      })));
+    } catch {
+      showToast("error", "Lỗi", "Không thể tải danh sách điểm");
+      setGrades([]);
+    } finally {
+      setLoadingGrades(false);
     }
-  }, [selected]);
+  }, [showToast]);
 
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     try {
       setLoadingClasses(true);
       const data = await lecturerService.getMyTimetable();
@@ -67,32 +80,22 @@ export function GradeEntry() {
       if (uniqueClasses.length > 0) {
         setSelected(uniqueClasses[0].id);
       }
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải danh sách lớp");
     } finally {
       setLoadingClasses(false);
     }
-  };
+  }, [showToast]);
 
-  const fetchGrades = async (sectionId) => {
-    try {
-      setLoadingGrades(true);
-      const data = await lecturerService.getGrades(sectionId);
-      // Data might contain processScore, midtermScore, finalScore
-      setGrades(data.map(g => ({
-        ...g,
-        processScore: g.processScore !== null ? g.processScore : "",
-        midtermScore: g.midtermScore !== null ? g.midtermScore : "",
-        finalScore: g.finalScore !== null ? g.finalScore : "",
-        _original: { ...g } // Store original to track changes
-      })));
-    } catch (error) {
-      showToast("error", "Lỗi", "Không thể tải danh sách điểm");
-      setGrades([]);
-    } finally {
-      setLoadingGrades(false);
+  useEffect(() => {
+    void fetchClasses();
+  }, [fetchClasses]);
+
+  useEffect(() => {
+    if (selected) {
+      void fetchGrades(selected);
     }
-  };
+  }, [fetchGrades, selected]);
 
   const update = (enrollmentId, field, val) => {
     setGrades((prev) =>
@@ -132,7 +135,7 @@ export function GradeEntry() {
           finalScore: g.finalScore || 0
         });
         successCount++;
-      } catch (err) {
+      } catch {
         showToast("error", "Lỗi lưu điểm", `Không thể lưu điểm cho ${g.studentName}`);
       }
     }
@@ -144,18 +147,18 @@ export function GradeEntry() {
     setSubmitting(false);
   };
 
-  const handlePublish = async (enrollmentId, studentName) => {
-    if (window.confirm(`Bạn có chắc chắn muốn công bố điểm của ${studentName}? Sau khi công bố, điểm sẽ bị khóa.`)) {
-      try {
-        setSubmitting(true);
-        await lecturerService.publishGrade(enrollmentId);
-        showToast("success", "Thành công", `Đã công bố điểm cho ${studentName}`);
-        fetchGrades(selected);
-      } catch (error) {
-        showToast("error", "Lỗi", "Không thể công bố điểm");
-      } finally {
-        setSubmitting(false);
-      }
+  const handlePublish = async () => {
+    if (!publishTarget) return;
+    try {
+      setSubmitting(true);
+      await lecturerService.publishGrade(publishTarget.enrollmentId);
+      showToast("success", "Thành công", `Đã công bố điểm cho ${publishTarget.studentName}`);
+      setPublishTarget(null);
+      fetchGrades(selected);
+    } catch {
+      showToast("error", "Lỗi", "Không thể công bố điểm");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -180,7 +183,6 @@ export function GradeEntry() {
     }
   };
 
-  const cls = classes.find((c) => c.id === selected);
   const filledCount = grades.filter(s => s.processScore !== "" && s.midtermScore !== "" && s.finalScore !== "").length;
 
   return (
@@ -229,7 +231,7 @@ export function GradeEntry() {
             <Info size={15} color="#2563eb" />
             <p style={{ fontSize: "0.78rem", color: "#1e40af" }}>
               Đã hoàn thành: <strong>{filledCount}/{grades.length}</strong> SV ·
-              Điểm chưa công bố có thể chỉnh sửa tự do.
+              Điểm chưa công bố có thể chỉnh sửa tự do. Công thức tổng kết: 10% quá trình, 30% giữa kỳ, 60% cuối kỳ.
             </p>
           </div>
 
@@ -243,7 +245,7 @@ export function GradeEntry() {
                 <table className="w-full" style={{ minWidth: 800 }}>
                   <thead>
                     <tr style={{ backgroundColor: "#f8fafc" }}>
-                      {["MSSV", "Họ tên", "QT (20%)", "GK (30%)", "CK (50%)", "Tổng kết", "Trạng thái", "Thao tác"].map((h) => (
+                      {["MSSV", "Họ tên", "QT (10%)", "GK (30%)", "CK (60%)", "Tổng kết", "Trạng thái", "Thao tác"].map((h) => (
                         <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                       ))}
                     </tr>
@@ -308,7 +310,7 @@ export function GradeEntry() {
                                 Xin sửa điểm
                               </button>
                             ) : (
-                              <button onClick={() => handlePublish(s.enrollmentId, s.studentName)} disabled={!pOk || !mOk || !fOk || s.processScore==="" || s.midtermScore==="" || s.finalScore===""} className="text-xs text-purple-600 font-semibold hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer">
+                              <button onClick={() => setPublishTarget(s)} disabled={!pOk || !mOk || !fOk || s.processScore==="" || s.midtermScore==="" || s.finalScore===""} className="text-xs text-purple-600 font-semibold hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer">
                                 Công bố
                               </button>
                             )}
@@ -356,6 +358,17 @@ export function GradeEntry() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!publishTarget}
+        title="Công bố điểm?"
+        description={publishTarget ? `Điểm của ${publishTarget.studentName} sẽ bị khóa sau khi công bố.` : ""}
+        confirmLabel="Công bố điểm"
+        variant="success"
+        loading={submitting}
+        onCancel={() => setPublishTarget(null)}
+        onConfirm={handlePublish}
+      />
     </div>
   );
 }
