@@ -3,6 +3,15 @@ import { GraduationCap, Home, ArrowLeft } from "lucide-react";
 
 export function NotFound() {
   const navigate = useNavigate();
+
+  const goBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/", { replace: true });
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
@@ -19,7 +28,7 @@ export function NotFound() {
         </p>
         <div className="flex gap-3 justify-center">
           <button
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl"
             style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", fontSize: "0.88rem" }}
           >
