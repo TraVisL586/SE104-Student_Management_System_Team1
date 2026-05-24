@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="#gioi-thieu">Giới thiệu</a> •
+  <a href="#cau-truc">Cấu trúc</a> •
   <a href="#kien-truc">Kiến trúc</a> •
   <a href="#cong-nghe">Công nghệ</a> •
   <a href="#cai-dat">Yêu cầu cài đặt</a> •
@@ -36,6 +37,26 @@
 ## 📖 Giới Thiệu Dự Án
 
 Đây là dự án Hệ Thống Quản Lý Sinh Viên được phát triển cho môn học SE104. Ứng dụng cung cấp các tính năng quản lý học vụ toàn diện bao gồm: quản lý thông tin sinh viên, giảng viên, môn học, đăng ký lớp học, quản lý điểm số, thanh toán học phí và xử lý các yêu cầu học vụ.
+
+<a id="cau-truc"></a>
+## 📂 Cấu Trúc Dự Án (Folder Structure)
+
+```text
+SE104-Student_Management_System_Team1/
+├── backend/                  # Mã nguồn Server (Spring Boot)
+│   ├── src/main/java/        # Logic nghiệp vụ, Controller, Entity, Service...
+│   ├── src/main/resources/   # Cấu hình dự án, Flyway migrations
+│   ├── docs/                 # Các script SQL (schema, test data)
+│   ├── docker-compose.yml    # Cấu hình deploy Database & Redis qua Docker
+│   └── pom.xml               # Khai báo dependency Maven
+├── frontend/                 # Mã nguồn Client (ReactJS + Vite)
+│   ├── src/                  # Components, Pages, Routes, Utils...
+│   ├── public/               # Tài nguyên tĩnh (ảnh, icon...)
+│   ├── package.json          # Khai báo dependency NPM
+│   └── vite.config.js        # Cấu hình build Vite
+├── docs/                     # Tài liệu chung của dự án
+└── README.md                 # Tài liệu hướng dẫn dự án
+```
 
 <a id="kien-truc"></a>
 ## 🏛️ Kiến Trúc Hệ Thống (Architecture)
