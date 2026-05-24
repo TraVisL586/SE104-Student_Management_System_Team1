@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminStudentService from "../../services/adminStudentService";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import AdminModal from "../../components/AdminModal";
 
 const ACADEMIC_STATUSES = [
   { value: "STUDYING", label: "Đang học" },
@@ -16,17 +18,15 @@ export function StudentManagement() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   
   const [form, setForm] = useState({
     name: "",
     studentCode: "",
     email: "",
     phoneNumber: "",
-    address: "",
     dateOfBirth: "",
-    department: "",
-    programCode: "",
-    enrollmentYear: new Date().getFullYear(),
     academicStatus: "STUDYING",
     password: "",
     username: "",
@@ -47,7 +47,6 @@ export function StudentManagement() {
   }, [showToast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStudents();
   }, [fetchStudents]);
 
@@ -85,9 +84,8 @@ export function StudentManagement() {
   const openCreate = () => {
     setEditingId(null);
     setForm({
-      name: "", studentCode: "", email: "", phoneNumber: "", address: "", 
-      dateOfBirth: "", department: "", programCode: "",
-      enrollmentYear: new Date().getFullYear(), academicStatus: "STUDYING", password: generateRandomPassword(), username: "",
+      name: "", studentCode: "", email: "", phoneNumber: "",
+      dateOfBirth: "", academicStatus: "STUDYING", password: generateRandomPassword(), username: "",
     });
     setShowModal(true);
   };
@@ -98,12 +96,8 @@ export function StudentManagement() {
       name: student.fullName || student.name || "",
       studentCode: student.studentCode || "",
       email: student.email || "",
-      phoneNumber: student.phoneNumber || "",
-      address: student.address || "",
+      phoneNumber: student.phone || student.phoneNumber || "",
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : "",
-      department: student.department || "",
-      programCode: student.programCode || "",
-      enrollmentYear: student.enrollmentYear || new Date().getFullYear(),
       academicStatus: student.academicStatus || "STUDYING",
       password: "",
       username: student.username || "",
@@ -149,15 +143,18 @@ export function StudentManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa sinh viên này?")) {
-      try {
-        await adminStudentService.deleteStudent(id);
-        showToast("success", "Thành công", "Đã xóa sinh viên");
-        fetchStudents();
-      } catch {
-        showToast("error", "Lỗi", "Không thể xóa sinh viên");
-      }
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await adminStudentService.deleteStudent(deleteTarget.id);
+      showToast("success", "Thành công", "Đã xóa sinh viên");
+      setDeleteTarget(null);
+      fetchStudents();
+    } catch {
+      showToast("error", "Lỗi", "Không thể xóa sinh viên");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -212,7 +209,7 @@ export function StudentManagement() {
             <table className="w-full" style={{ minWidth: 800 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["MSSV", "Họ và tên", "Email", "Khoa / Ngành", "Trạng thái", "Thao tác"].map((h) => (
+                  {["MSSV", "Họ và tên", "Email", "SĐT", "Trạng thái", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -223,10 +220,7 @@ export function StudentManagement() {
                     <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#10b981", fontWeight: 600 }}>{s.studentCode}</td>
                     <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 500 }}>{s.fullName || s.name}</td>
                     <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.email}</td>
-                    <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>
-                      {s.department || "—"}<br/>
-                      <span style={{ fontSize: "0.68rem" }}>{s.programCode || ""}</span>
-                    </td>
+                    <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.phone || "—"}</td>
                     <td className="px-4 py-3">
                       <select
                         value={s.academicStatus || "STUDYING"}
@@ -241,7 +235,7 @@ export function StudentManagement() {
                         <button onClick={() => openEdit(s)} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors">
                           <Edit2 size={15} />
                         </button>
-                        <button onClick={() => handleDelete(s.id)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
+                        <button onClick={() => setDeleteTarget(s)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -254,11 +248,12 @@ export function StudentManagement() {
         )}
       </div>
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 className="text-lg font-bold mb-4">
-              {editingId ? "Sửa thông tin" : "Thêm sinh viên mới"}</h2>
+      <AdminModal
+        open={showModal}
+        title={editingId ? "Sửa thông tin" : "Thêm sinh viên mới"}
+        onClose={() => setShowModal(false)}
+        maxWidth="max-w-2xl"
+      >
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Row 1: Họ tên + Mã sinh viên */}
               <div className="grid grid-cols-2 gap-4">
@@ -300,37 +295,13 @@ export function StudentManagement() {
                 </div>
               </div>
 
-              {/* Row 3: Khoa / Viện + Mã CTĐT */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold mb-1">Khoa / Viện</label>
-                  <input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1">Mã CTĐT</label>
-                  <input value={form.programCode} onChange={e => setForm({...form, programCode: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-              </div>
-
-              {/* Row 4: Ngày sinh + Năm nhập học */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold mb-1">Ngày sinh</label>
-                  <input type="date" value={form.dateOfBirth} onChange={e => setForm({...form, dateOfBirth: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1">Năm nhập học</label>
-                  <input type="number" value={form.enrollmentYear} onChange={e => setForm({...form, enrollmentYear: parseInt(e.target.value) || 2026})} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-              </div>
-
-              {/* Row 5: Địa chỉ (full width) */}
+              {/* Row 3: Ngày sinh */}
               <div>
-                <label className="block text-xs font-semibold mb-1">Địa chỉ</label>
-                <input value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                <label className="block text-xs font-semibold mb-1">Ngày sinh</label>
+                <input type="date" value={form.dateOfBirth} onChange={e => setForm({...form, dateOfBirth: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
               </div>
 
-              {/* Row 6: Password (chỉ hiển thị khi tạo mới) */}
+              {/* Row 4: Password (chỉ hiển thị khi tạo mới) */}
               {!editingId && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -371,9 +342,17 @@ export function StudentManagement() {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">Lưu thay đổi</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa sinh viên?"
+        description={deleteTarget ? `Sinh viên "${deleteTarget.studentCode} - ${deleteTarget.fullName || deleteTarget.name}" sẽ bị chuyển sang trạng thái không hoạt động/đình chỉ theo xử lý hiện tại của hệ thống.` : ""}
+        confirmLabel="Xóa sinh viên"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

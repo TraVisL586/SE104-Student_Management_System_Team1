@@ -1,23 +1,16 @@
-import { useState, useEffect } from "react";
-import { Search, UserCheck, Award, FileText, AlertTriangle, Loader2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BookOpenCheck, Loader2, Phone, RefreshCw, Search, UserCheck } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
 import advisorService from "../../services/advisorService";
-
-const STATUS_CFG = {
-  ACTIVE:    { label: "Bình thường",    color: "#10b981", bg: "#d1fae5" },
-  WARNING:   { label: "Cảnh báo",       color: "#f59e0b", bg: "#fef3c7" },
-  SUSPENDED: { label: "Đình chỉ",       color: "#dc2626", bg: "#fee2e2" },
-  GRADUATED: { label: "Đã tốt nghiệp",  color: "#2563eb", bg: "#dbeafe" },
-  DROPPED_OUT:  { label: "Buộc thôi học",  color: "#7f1d1d", bg: "#fee2e2" },
-};
+import { getAcademicStatusConfig, getStudentDisplayName, isAtRiskStatus } from "./advisorStatus";
 
 export function StudentProfiles() {
   const [searchParams] = useSearchParams();
   const searchParam = searchParams.get("search") || "";
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState(searchParam);
+  const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
     setSearch(searchParam);
@@ -26,50 +19,55 @@ export function StudentProfiles() {
   const [profile, setProfile] = useState(null);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  useEffect(() => {
-    if (selectedId) {
-      fetchProfile(selectedId);
-    } else {
-      setProfile(null);
-    }
-  }, [selectedId]);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
       setLoadingStudents(true);
+      setLoadError(false);
       const data = await advisorService.getMyStudents();
-      setStudents(data);
-    } catch (error) {
+      const nextStudents = Array.isArray(data) ? data : [];
+      setStudents(nextStudents);
+      setSelectedId((current) => current || nextStudents[0]?.studentId || null);
+    } catch {
+      setLoadError(true);
       showToast("error", "Lỗi", "Không thể tải danh sách sinh viên do bạn phụ trách.");
     } finally {
       setLoadingStudents(false);
     }
-  };
+  }, [showToast]);
 
-  const fetchProfile = async (id) => {
+  const fetchProfile = useCallback(async (id) => {
     try {
       setLoadingProfile(true);
       const data = await advisorService.getStudentProfile(id);
       setProfile(data);
-    } catch (error) {
+    } catch {
       showToast("error", "Lỗi", "Không thể tải hồ sơ chi tiết của sinh viên.");
       setProfile(null);
     } finally {
       setLoadingProfile(false);
     }
-  };
+  }, [showToast]);
 
-  const filtered = students.filter(
+  useEffect(() => {
+    void fetchStudents();
+  }, [fetchStudents]);
+
+  useEffect(() => {
+    if (selectedId) {
+      void fetchProfile(selectedId);
+    } else {
+      setProfile(null);
+    }
+  }, [fetchProfile, selectedId]);
+
+  const filtered = useMemo(() => students.filter(
     (s) =>
-      s.studentName?.toLowerCase().includes(search.toLowerCase()) ||
-      s.studentCode?.toLowerCase().includes(search.toLowerCase())
-  );
+      getStudentDisplayName(s).toLowerCase().includes(deferredSearch.toLowerCase()) ||
+      s.studentCode?.toLowerCase().includes(deferredSearch.toLowerCase())
+  ), [deferredSearch, students]);
 
   return (
     <div className="space-y-5">
@@ -100,12 +98,21 @@ export function StudentProfiles() {
               <div className="flex justify-center py-10">
                 <Loader2 className="animate-spin text-blue-600" size={24} />
               </div>
+            ) : loadError ? (
+              <div className="px-4 py-10 text-center">
+                <AlertTriangle className="mx-auto mb-3 text-red-500" size={28} />
+                <p className="text-sm text-slate-600">Không thể tải danh sách sinh viên</p>
+                <button onClick={fetchStudents} className="mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold">
+                  <RefreshCw size={14} /> Tải lại
+                </button>
+              </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-10 text-sm text-slate-500">
                 Không tìm thấy sinh viên nào
               </div>
             ) : filtered.map((s) => {
-              const cfg = STATUS_CFG[s.academicStatus] || STATUS_CFG.ACTIVE;
+              const cfg = getAcademicStatusConfig(s.academicStatus);
+              const displayName = getStudentDisplayName(s);
               return (
                 <button
                   key={s.studentId}
@@ -120,11 +127,11 @@ export function StudentProfiles() {
                 >
                   <div style={{ width: 36, height: 36, borderRadius: 9999, backgroundColor: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: "0.85rem", fontWeight: 700, color: cfg.color }}>
-                      {s.studentName.charAt(0)}
+                      {displayName.charAt(0)}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b" }} className="truncate">{s.studentName}</p>
+                    <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b" }} className="truncate">{displayName}</p>
                     <p style={{ fontSize: "0.68rem", color: "#94a3b8", fontFamily: "monospace" }}>{s.studentCode}</p>
                     <span style={{ fontSize: "0.62rem", fontWeight: 600, color: cfg.color }}>{cfg.label}</span>
                   </div>
@@ -146,20 +153,21 @@ export function StudentProfiles() {
               <div className="rounded-2xl p-5 flex items-start justify-between flex-wrap gap-4" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
                 <div className="flex items-center gap-4">
                   <div style={{ width: 56, height: 56, borderRadius: 9999, background: "linear-gradient(135deg,#92400e,#f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "1.2rem", fontWeight: 700 }}>
-                    {profile.studentName.charAt(0)}
+                    {getStudentDisplayName(profile).charAt(0)}
                   </div>
                   <div>
-                    <h2 style={{ color: "#1e293b" }}>{profile.studentName}</h2>
+                    <h2 style={{ color: "#1e293b" }}>{getStudentDisplayName(profile)}</h2>
                     <p style={{ fontFamily: "monospace", fontSize: "0.78rem", color: "#64748b" }}>{profile.studentCode}</p>
-                    <span style={{ display: "inline-block", marginTop: 4, fontSize: "0.7rem", fontWeight: 700, padding: "2px 9px", borderRadius: 9999, backgroundColor: (STATUS_CFG[profile.academicStatus] || STATUS_CFG.ACTIVE).bg, color: (STATUS_CFG[profile.academicStatus] || STATUS_CFG.ACTIVE).color }}>
-                      {(STATUS_CFG[profile.academicStatus] || STATUS_CFG.ACTIVE).label}
+                    <span style={{ display: "inline-block", marginTop: 4, fontSize: "0.7rem", fontWeight: 700, padding: "2px 9px", borderRadius: 9999, backgroundColor: getAcademicStatusConfig(profile.academicStatus).bg, color: getAcademicStatusConfig(profile.academicStatus).color }}>
+                      {getAcademicStatusConfig(profile.academicStatus).label}
                     </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-4 text-center">
                   {[
                     { label: "GPA", value: profile.gpa || "N/A", color: (profile.gpa || 0) < 5 ? "#ef4444" : (profile.gpa || 0) < 7 ? "#f59e0b" : "#10b981" },
-                    { label: "Tín chỉ tích lũy", value: profile.accumulatedCredits || 0, color: "#2563eb" },
+                    { label: "Tín chỉ đạt", value: profile.passedCredits || 0, color: "#2563eb" },
+                    { label: "Môn rớt", value: profile.failedCourses || 0, color: "#ef4444" },
                   ].map(({ label, value, color }) => (
                     <div key={label}>
                       <p style={{ fontSize: "1.3rem", fontWeight: 800, color }}>{value}</p>
@@ -170,40 +178,23 @@ export function StudentProfiles() {
               </div>
 
               {/* Warnings */}
-              {profile.academicStatus !== "ACTIVE" && (
+              {isAtRiskStatus(profile.academicStatus) && (
                 <div className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ backgroundColor: "#fef3c7", border: "1px solid #fde68a" }}>
                   <AlertTriangle size={16} color="#f59e0b" style={{ marginTop: 1, flexShrink: 0 }} />
                   <p style={{ fontSize: "0.82rem", color: "#92400e" }}>
-                    Sinh viên đang có tình trạng học vụ <strong>{(STATUS_CFG[profile.academicStatus] || STATUS_CFG.WARNING).label}</strong>. Cần tư vấn và theo dõi đặc biệt.
+                    Sinh viên đang có tình trạng học vụ <strong>{getAcademicStatusConfig(profile.academicStatus).label}</strong>. Cần tư vấn và theo dõi đặc biệt.
                   </p>
                 </div>
               )}
 
-              {/* Recent Grades */}
               <div className="rounded-2xl p-5" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
-                <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b", marginBottom: 12 }}>Kết quả học tập gần đây</p>
-                {profile.recentGrades && profile.recentGrades.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-500">
-                          <th className="px-3 py-2 text-left font-semibold">Môn học</th>
-                          <th className="px-3 py-2 text-left font-semibold">Điểm</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {profile.recentGrades.map((g, idx) => (
-                          <tr key={idx} className="border-t">
-                            <td className="px-3 py-2">{g.courseName} <span className="text-slate-400 text-xs">({g.courseCode})</span></td>
-                            <td className="px-3 py-2 font-semibold" style={{ color: (g.finalScore || 0) < 5 ? "#ef4444" : "#10b981" }}>{g.finalScore || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500">Chưa có dữ liệu điểm.</p>
-                )}
+                <p style={{ fontWeight: 700, fontSize: "0.92rem", color: "#1e293b", marginBottom: 12 }}>Thông tin liên hệ</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <InfoItem label="Email" value={profile.email || "—"} icon={UserCheck} />
+                  <InfoItem label="Số điện thoại" value={profile.phone || "—"} icon={Phone} />
+                  <InfoItem label="Tín chỉ đã đạt" value={`${profile.passedCredits || 0} tín chỉ`} icon={BookOpenCheck} />
+                  <InfoItem label="Số môn chưa đạt" value={`${profile.failedCourses || 0} môn`} icon={AlertTriangle} />
+                </div>
               </div>
 
             </div>
@@ -214,6 +205,20 @@ export function StudentProfiles() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoItem({ label, value, icon: Icon }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-500">
+        <Icon size={16} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="truncate text-sm font-semibold text-slate-800">{value}</p>
       </div>
     </div>
   );

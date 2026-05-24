@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Shield, Key, Plus, Loader2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminAccountService from "../../services/adminAccountService";
+import AdminModal from "../../components/AdminModal";
 
 const ROLES = [
   { value: "STUDENT", label: "Sinh viên" },
@@ -79,7 +80,6 @@ export function AccountManagement() {
   }, [showToast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAccounts();
   }, [fetchAccounts]);
 
@@ -231,10 +231,12 @@ export function AccountManagement() {
         )}
       </div>
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 500, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 className="text-lg font-bold mb-4">Thêm tài khoản mới</h2>
+      <AdminModal
+        open={showModal}
+        title="Thêm tài khoản mới"
+        onClose={() => setShowModal(false)}
+        maxWidth="max-w-lg"
+      >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Username *</label>
@@ -304,14 +306,14 @@ export function AccountManagement() {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">Tạo tài khoản</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminModal>
 
-      {showPasswordModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 400, width: "100%" }}>
-            <h2 className="text-lg font-bold mb-4">Đổi mật khẩu</h2>
+      <AdminModal
+        open={showPasswordModal}
+        title="Đổi mật khẩu"
+        onClose={() => setShowPasswordModal(false)}
+        maxWidth="max-w-md"
+      >
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Mật khẩu mới *</label>
@@ -322,9 +324,7 @@ export function AccountManagement() {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">Cập nhật</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Search, Edit2, Trash2, Plus, Loader2, Building2 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import adminCatalogService from "../../services/adminCatalogService";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import AdminModal from "../../components/AdminModal";
 
 export function DepartmentManagement() {
   const [departments, setDepartments] = useState([]);
@@ -9,6 +11,8 @@ export function DepartmentManagement() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   
   const [form, setForm] = useState({
     code: "",
@@ -72,15 +76,18 @@ export function DepartmentManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa khoa này? Các dữ liệu liên quan có thể bị ảnh hưởng.")) {
-      try {
-        await adminCatalogService.deleteDepartment(id);
-        showToast("success", "Thành công", "Đã xóa khoa");
-        fetchDepartments();
-      } catch (error) {
-        showToast("error", "Lỗi", "Không thể xóa khoa, có thể do đang có dữ liệu liên kết");
-      }
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await adminCatalogService.deleteDepartment(deleteTarget.id);
+      showToast("success", "Thành công", "Đã xóa khoa");
+      setDeleteTarget(null);
+      fetchDepartments();
+    } catch (error) {
+      showToast("error", "Lỗi", "Không thể xóa khoa, có thể do đang có dữ liệu liên kết");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -145,7 +152,7 @@ export function DepartmentManagement() {
                         <button onClick={() => openEdit(d)} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors">
                           <Edit2 size={15} />
                         </button>
-                        <button onClick={() => handleDelete(d.id)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
+                        <button onClick={() => setDeleteTarget(d)} className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -158,10 +165,12 @@ export function DepartmentManagement() {
         )}
       </div>
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, maxWidth: 500, width: "100%" }}>
-            <h2 className="text-lg font-bold mb-4">{editingId ? "Sửa khoa/viện" : "Thêm khoa/viện mới"}</h2>
+      <AdminModal
+        open={showModal}
+        title={editingId ? "Sửa khoa/viện" : "Thêm khoa/viện mới"}
+        onClose={() => setShowModal(false)}
+        maxWidth="max-w-lg"
+      >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Mã Khoa *</label>
@@ -181,9 +190,17 @@ export function DepartmentManagement() {
                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">Lưu thay đổi</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa khoa/viện?"
+        description={deleteTarget ? `Khoa "${deleteTarget.code} - ${deleteTarget.name}" sẽ bị xóa. Các dữ liệu liên quan có thể bị ảnh hưởng.` : ""}
+        confirmLabel="Xóa khoa"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
