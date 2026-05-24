@@ -1,20 +1,23 @@
 <p align="center">
-  <img src="ReadmeAssets/uit.png" alt="UIT Logo" width="200">
+  <img src="ReadmeAssets/uit.png" alt="UIT Logo" width="600">
 </p>
 
 <h1 align="center">HỆ THỐNG QUẢN LÝ SINH VIÊN</h1>
 
 <p align="center">
-  <strong>Đồ án môn học: Nhập môn Công nghệ phần mềm (SE104)</strong>
+  <strong>Đồ án môn học: Nhập môn Công nghệ phần mềm (SE104)</strong><br><br>
+  <a href="https://github.com/TraVisL586/SE104-Student_Management_System_Team1">
+    <img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Repo">
+  </a>
 </p>
 
 <p align="center">
-  <a href="#-giới-thiệu-dự-án">Giới thiệu</a> •
-  <a href="#-kiến-trúc-hệ-thống-architecture">Kiến trúc</a> •
-  <a href="#-công-nghệ-sử-dụng">Công nghệ</a> •
-  <a href="#-yêu-cầu-cài-đặt-prerequisites">Yêu cầu cài đặt</a> •
-  <a href="#-hướng-dẫn-cài-đặt--chạy-ứng-dụng">Hướng dẫn chạy</a> •
-  <a href="#-danh-sách-tài-khoản-mẫu-test-accounts">Tài khoản Test</a>
+  <a href="#gioi-thieu">Giới thiệu</a> •
+  <a href="#kien-truc">Kiến trúc</a> •
+  <a href="#cong-nghe">Công nghệ</a> •
+  <a href="#cai-dat">Yêu cầu cài đặt</a> •
+  <a href="#huong-dan">Hướng dẫn chạy</a> •
+  <a href="#tai-khoan">Tài khoản Test</a>
 </p>
 
 ---
@@ -23,16 +26,18 @@
 
 | STT | MSSV | Họ và tên | GitHub |
 |:---:|:---:|:---:|:---:|
-| 1 | **24520842** | Cao Tiến Phát | [phatcao026](https://github.com/phatcao026) |
+| 1 | **245201289** | Cao Tiến Phát | [phatcao026](https://github.com/phatcao026) |
 | 2 | **24521018** | Trần Việt Long | [TraVisL586](https://github.com/TraVisL586) |
 | 3 | **24520812** | Đỗ Đăng Khoa | [DOKA206](https://github.com/DOKA206) |
 
 ---
 
+<a id="gioi-thieu"></a>
 ## 📖 Giới Thiệu Dự Án
 
 Đây là dự án Hệ Thống Quản Lý Sinh Viên được phát triển cho môn học SE104. Ứng dụng cung cấp các tính năng quản lý học vụ toàn diện bao gồm: quản lý thông tin sinh viên, giảng viên, môn học, đăng ký lớp học, quản lý điểm số, thanh toán học phí và xử lý các yêu cầu học vụ.
 
+<a id="kien-truc"></a>
 ## 🏛️ Kiến Trúc Hệ Thống (Architecture)
 
 Dự án được thiết kế theo mô hình **Client-Server** với sự phân tách độc lập giữa Frontend và Backend:
@@ -53,6 +58,7 @@ Dự án được thiết kế theo mô hình **Client-Server** với sự phân
 
 Môi trường cơ sở dữ liệu và caching được container hóa bằng **Docker Compose** để dễ dàng khởi tạo và đồng nhất giữa các môi trường phát triển.
 
+<a id="cong-nghe"></a>
 ## 🛠️ Công Nghệ Sử Dụng
 
 ### Frontend
@@ -72,6 +78,7 @@ Môi trường cơ sở dữ liệu và caching được container hóa bằng *
 
 ---
 
+<a id="cai-dat"></a>
 ## 📋 Yêu Cầu Cài Đặt (Prerequisites)
 
 Trước khi chạy dự án, hãy đảm bảo máy tính của bạn đã cài đặt các công cụ sau:
@@ -79,15 +86,17 @@ Trước khi chạy dự án, hãy đảm bảo máy tính của bạn đã cài
 - **[Java Development Kit (JDK) 21](https://jdk.java.net/21/)**
 - **[Docker](https://www.docker.com/)** và **Docker Compose** (Dành cho việc chạy Database và Redis)
 - **Git**
+- **[DBeaver](https://dbeaver.io/)** hoặc pgAdmin (Để thao tác và quản lý Database)
 
 ---
 
+<a id="huong-dan"></a>
 ## 🚀 Hướng Dẫn Cài Đặt & Chạy Ứng Dụng
 
 ### 1. Clone Repository
 
 ```bash
-git clone <repository_url>
+git clone https://github.com/TraVisL586/SE104-Student_Management_System_Team1.git
 cd SE104-Student_Management_System_Team1
 ```
 
@@ -166,6 +175,7 @@ npm run dev
 
 ---
 
+<a id="tai-khoan"></a>
 ## 👤 Danh Sách Tài Khoản Mẫu (Test Accounts)
 
 Sau khi nạp dữ liệu mẫu từ file SQL (hoặc hệ thống tự khởi tạo admin mặc định), bạn có thể sử dụng các tài khoản dưới đây để đăng nhập vào hệ thống. 
