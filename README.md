@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ReadmeAssets/uit.png" alt="UIT Logo" width="600">
+  <img src="ReadmeAssets/uit.png" alt="UIT Logo" width="400">
 </p>
 
 <h1 align="center">HỆ THỐNG QUẢN LÝ SINH VIÊN</h1>
