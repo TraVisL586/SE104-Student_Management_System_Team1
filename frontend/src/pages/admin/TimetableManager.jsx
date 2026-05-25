@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   AlertTriangle,
   Building2,
@@ -145,6 +145,7 @@ export function TimetableManager() {
   const [submitting, setSubmitting] = useState(false);
   const [sectionId, setSectionId] = useState(null);
   const [week, setWeek] = useState(getCurrentWeek());
+  const formRef = useRef(null);
   const { showToast } = useToast();
 
   const dates = useMemo(() => {
@@ -273,14 +274,22 @@ export function TimetableManager() {
     return schedule.filter((entry) => entry.day === day && entry.slot <= slot && entry.endSlot >= slot);
   }
 
-  function entriesForResourceCell(resource, slot, field) {
-    return schedule.filter((entry) => entry[field] === resource && entry.slot <= slot && entry.endSlot >= slot);
+  function entriesForResourceCell(resource, day, slot, field) {
+    return schedule.filter((entry) =>
+      entry[field] === resource
+      && entry.day === day
+      && entry.slot <= slot
+      && entry.endSlot >= slot
+    );
   }
 
   function openQuickAdd(day, slot, room = "") {
     const matchedRoom = roomOptions.find((item) => item.id === room || item.code === room || item.name === room);
     setForm({ day, slot, roomId: matchedRoom?.id || room || "" });
     setShowForm(true);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function handleDrop(event, day, slot, room = "") {
@@ -560,11 +569,14 @@ export function TimetableManager() {
   );
 
   const renderResourceGrid = (resources, field, emptyLabel) => (
-      <table className="w-full" style={{ minWidth: 880, borderCollapse: "separate", borderSpacing: 0 }}>
+      <table className="w-full" style={{ minWidth: 1040, borderCollapse: "separate", borderSpacing: 0 }}>
         <thead>
         <tr style={{ background: "#0f2f4a" }}>
           <th style={{ width: 150, padding: "11px 12px", textAlign: "left", color: "#bfdbfe", fontSize: "0.68rem", fontWeight: 900 }}>
             {emptyLabel}
+          </th>
+          <th style={{ width: 96, padding: "11px 12px", textAlign: "left", color: "#bfdbfe", fontSize: "0.68rem", fontWeight: 900 }}>
+            Thứ
           </th>
           {SLOTS.map((slot) => (
               <th key={slot.id} style={{ padding: "11px 8px", color: "#fff", textAlign: "center", fontSize: "0.72rem", fontWeight: 900 }}>
@@ -575,23 +587,30 @@ export function TimetableManager() {
         </tr>
         </thead>
         <tbody>
-        {(resources.length ? resources : ["Chưa phân công giảng viên"]).map((resource) => (
-            <tr key={resource}>
+        {(resources.length ? resources : ["Chưa phân công giảng viên"]).flatMap((resource) =>
+          DAYS.map((day, dayIndex) => (
+            <tr key={`${resource}-${day}`}>
+              {dayIndex === 0 && (
+                <td rowSpan={DAYS.length} style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", verticalAlign: "top" }}>
+                  <p style={{ color: "#0f172a", fontSize: "0.76rem", fontWeight: 900 }}>{resource}</p>
+                  <p style={{ color: "#64748b", fontSize: "0.62rem" }}>
+                    {schedule.filter((entry) => entry[field] === resource).length} lịch đã xếp
+                  </p>
+                </td>
+              )}
               <td style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                <p style={{ color: "#0f172a", fontSize: "0.76rem", fontWeight: 900 }}>{resource}</p>
-                <p style={{ color: "#64748b", fontSize: "0.62rem" }}>
-                  {schedule.filter((entry) => entry[field] === resource).length} tiết đã xếp
-                </p>
+                <p style={{ color: "#0f172a", fontSize: "0.72rem", fontWeight: 900 }}>{day}</p>
+                <p style={{ color: "#64748b", fontSize: "0.62rem" }}>{dates[dayIndex]}</p>
               </td>
               {SLOTS.map((slot) => {
-                const entries = entriesForResourceCell(resource, slot.id, field);
+                const entries = entriesForResourceCell(resource, dayIndex, slot.id, field);
                 return (
                     <td key={slot.id} style={{ minWidth: 168, padding: 6, verticalAlign: "top", borderTop: "1px solid #e2e8f0" }}>
                       <div style={{ display: "grid", gap: 5 }}>
                         {entries.length
                             ? entries.map((entry) => entry.slot === slot.id ? renderScheduleCard(entry, true) : renderContinuation(entry))
                             : renderEmptyCell(
-                              0,
+                              dayIndex,
                               slot.id,
                               field === "room" ? roomOptions.find((room) => room.code === resource || room.name === resource)?.id || "" : ""
                             )}
@@ -600,7 +619,8 @@ export function TimetableManager() {
                 );
               })}
             </tr>
-        ))}
+          ))
+        )}
         </tbody>
       </table>
   );
@@ -689,7 +709,7 @@ export function TimetableManager() {
         </div>
 
         {showForm && (
-            <div style={{ ...shell.card, padding: 16 }}>
+            <div ref={formRef} style={{ ...shell.card, padding: 16 }}>
               <p style={{ color: "#0f172a", fontSize: "0.92rem", fontWeight: 900, marginBottom: 12 }}>Xếp lịch cho lớp học phần</p>
               <form onSubmit={addEntry} style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(130px, 1fr))", gap: 12 }}>
                 <div>
