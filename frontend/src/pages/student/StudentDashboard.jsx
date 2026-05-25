@@ -6,7 +6,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LabelList,
 } from "recharts";
 import {
-  BookOpen, Calendar, Award, CreditCard, FileText, AlertTriangle,
+  BookOpen, Calendar, Award, CreditCard, FileText,
   TrendingUp, Clock, ChevronRight, Loader2, Key,
 } from "lucide-react";
 import studentService from "../../services/studentService";

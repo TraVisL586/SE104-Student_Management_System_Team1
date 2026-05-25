@@ -13,6 +13,7 @@ public class CourseResponse {
     private String code;
     private String name;
     private Integer credits;
+    private Integer periodsPerSession;
     private String description;
     private Boolean isActive;
     private Integer departmentId;

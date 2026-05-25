@@ -6,8 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalTime;
-
 @Getter
 @Setter
 public class CourseSectionScheduleRequest {
@@ -20,9 +18,8 @@ public class CourseSectionScheduleRequest {
     @Max(value = 7, message = "Day of week must be between 1 and 7")
     private Integer dayOfWeek;
 
-    @NotNull(message = "Start time is required")
-    private LocalTime startTime;
-
-    @NotNull(message = "End time is required")
-    private LocalTime endTime;
+    @NotNull(message = "Start period is required")
+    @Min(value = 1, message = "Start period must be between 1 and 10")
+    @Max(value = 10, message = "Start period must be between 1 and 10")
+    private Integer startPeriod;
 }

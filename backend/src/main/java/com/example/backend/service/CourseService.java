@@ -8,6 +8,8 @@ import com.example.backend.entity.CoursePrerequisite;
 import com.example.backend.entity.Department;
 import com.example.backend.repository.CoursePrerequisiteRepository;
 import com.example.backend.repository.CourseRepository;
+import com.example.backend.repository.CourseSectionRepository;
+import com.example.backend.repository.CourseSectionScheduleRepository;
 import com.example.backend.repository.DepartmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final DepartmentRepository departmentRepository;
     private final CoursePrerequisiteRepository prerequisiteRepository;
+    private final CourseSectionRepository courseSectionRepository;
+    private final CourseSectionScheduleRepository scheduleRepository;
 
     @Transactional
     public CourseResponse create(CourseRequest request) {
@@ -35,6 +39,7 @@ public class CourseService {
         course.setCode(request.getCode());
         course.setName(request.getName());
         course.setCredits(request.getCredits());
+        course.setPeriodsPerSession(request.getPeriodsPerSession());
         course.setDescription(request.getDescription());
         course.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
         courseRepository.save(course);
@@ -63,10 +68,16 @@ public class CourseService {
 
         Department department = findDepartment(request.getDepartmentId());
 
+        if (!course.getPeriodsPerSession().equals(request.getPeriodsPerSession())
+                && hasScheduledSection(course.getId())) {
+            throw new RuntimeException("Cannot change periods per session after course sections have schedules");
+        }
+
         course.setDepartment(department);
         course.setCode(request.getCode());
         course.setName(request.getName());
         course.setCredits(request.getCredits());
+        course.setPeriodsPerSession(request.getPeriodsPerSession());
         course.setDescription(request.getDescription());
         if (request.getIsActive() != null) {
             course.setIsActive(request.getIsActive());
@@ -132,6 +143,7 @@ public class CourseService {
         response.setCode(course.getCode());
         response.setName(course.getName());
         response.setCredits(course.getCredits());
+        response.setPeriodsPerSession(course.getPeriodsPerSession());
         response.setDescription(course.getDescription());
         response.setIsActive(course.getIsActive());
         response.setCreatedAt(course.getCreatedAt());
@@ -152,5 +164,10 @@ public class CourseService {
         return prerequisiteRepository.findByCourseId(courseId).stream()
                 .map(relation -> mapToResponse(relation.getPrerequisiteCourse(), false))
                 .toList();
+    }
+
+    private boolean hasScheduledSection(Integer courseId) {
+        return courseSectionRepository.findByCourseId(courseId).stream()
+                .anyMatch(section -> !scheduleRepository.findByCourseSectionId(section.getId()).isEmpty());
     }
 }

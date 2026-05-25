@@ -8,6 +8,24 @@ import adminAccountService from "../../services/adminAccountService";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AdminModal from "../../components/AdminModal";
 
+const getStatusConfig = (section) => {
+  const status = section.status || "DRAFT";
+  const isFull = (section.enrolledCount || 0) >= (section.capacity || 1);
+
+  if (status === "OPEN" && isFull) {
+    return { label: "Đã đầy", color: "#f59e0b", bg: "#fef3c7" };
+  }
+
+  const configs = {
+    DRAFT: { label: "Nháp", color: "#64748b", bg: "#f1f5f9" },
+    OPEN: { label: "Đang mở", color: "#10b981", bg: "#d1fae5" },
+    CLOSED: { label: "Đã đóng", color: "#475569", bg: "#e2e8f0" },
+    CANCELLED: { label: "Đã hủy", color: "#dc2626", bg: "#fee2e2" },
+  };
+
+  return configs[status] || { label: status, color: "#64748b", bg: "#f1f5f9" };
+};
+
 export function CourseSections() {
   const [searchParams] = useSearchParams();
   const searchParam = searchParams.get("search") || "";
@@ -26,7 +44,7 @@ export function CourseSections() {
   const [editId, setEditId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const createEmptyForm = () => ({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50, status: "OPEN" });
+  const createEmptyForm = () => ({ code: "", courseId: "", semesterId: "", lecturerId: "", capacity: 50, periodsPerSession: 1, status: "DRAFT" });
   const [form, setForm] = useState(createEmptyForm());
   const { showToast } = useToast();
 
@@ -61,8 +79,8 @@ export function CourseSections() {
       (s.lecturerName || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const openCount = sections.filter(s => s.status === "OPEN" || !s.status).length;
-  const fullCount = sections.filter(s => (s.enrolledCount || 0) >= (s.capacity || 1)).length;
+  const openCount = sections.filter(s => s.status === "OPEN").length;
+  const draftCount = sections.filter(s => !s.status || s.status === "DRAFT").length;
   const closedCount = sections.filter(s => s.status === "CLOSED").length;
 
   const handleSubmit = async (e) => {
@@ -75,6 +93,7 @@ export function CourseSections() {
         semesterId: Number(form.semesterId),
         lecturerId: Number(form.lecturerId),
         capacity: Number(form.capacity),
+        periodsPerSession: Number(form.periodsPerSession),
       };
       if (editId) {
         await adminSchedulingService.updateCourseSection(editId, payload);
@@ -86,7 +105,7 @@ export function CourseSections() {
       setForm(createEmptyForm());
       setShowForm(false);
       setEditId(null);
-      fetchAll();
+      await fetchAll();
     } catch (error) {
       showToast("error", "Lỗi", error.message || "Không thể lưu lớp học phần");
     } finally {
@@ -117,7 +136,8 @@ export function CourseSections() {
       semesterId: sec.semesterId || "",
       lecturerId: sec.lecturerId || "",
       capacity: sec.capacity || 50,
-      status: sec.status || "OPEN",
+      periodsPerSession: sec.periodsPerSession || 1,
+      status: sec.status || "DRAFT",
     });
     setShowForm(true);
   };
@@ -167,7 +187,19 @@ export function CourseSections() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Môn học *</label>
-                  <select required value={form.courseId} onChange={(e) => setForm(p => ({ ...p, courseId: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
+                  <select
+                    required
+                    value={form.courseId}
+                    onChange={(e) => {
+                      const selectedCourse = courses.find((course) => course.id === Number(e.target.value));
+                      setForm(p => ({
+                        ...p,
+                        courseId: e.target.value,
+                        periodsPerSession: selectedCourse?.periodsPerSession || p.periodsPerSession || 1,
+                      }));
+                    }}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  >
                     <option value="">Chọn môn học</option>
                     {courses.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
                   </select>
@@ -195,6 +227,18 @@ export function CourseSections() {
                 </div>
 
                 <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Số tiết mỗi buổi</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={form.periodsPerSession}
+                    onChange={(e) => setForm(p => ({ ...p, periodsPerSession: parseInt(e.target.value) || 1 }))}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Trạng thái</label>
                   <select value={form.status} onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))} className="w-full p-2 border rounded-lg text-sm">
                     <option value="DRAFT">Nháp</option>
@@ -217,7 +261,7 @@ export function CourseSections() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Đang mở", value: openCount, color: "#10b981", bg: "#d1fae5" },
-          { label: "Đã đầy", value: fullCount, color: "#f59e0b", bg: "#fef3c7" },
+          { label: "Nháp", value: draftCount, color: "#64748b", bg: "#f1f5f9" },
           { label: "Đã đóng", value: closedCount, color: "#64748b", bg: "#e2e8f0" },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="rounded-xl p-3 text-center" style={{ backgroundColor: bg }}>
@@ -250,22 +294,17 @@ export function CourseSections() {
             <table className="w-full" style={{ minWidth: 800 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["Mã lớp HP", "Môn học", "Giảng viên", "Sĩ số", "Trạng thái", "Thao tác"].map((h) => (
+                  {["Mã lớp HP", "Môn học", "Giảng viên", "Sĩ số", "Số tiết", "Trạng thái", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center py-6 text-sm text-slate-500">Không có lớp học phần nào</td></tr>
+                  <tr><td colSpan="7" className="text-center py-6 text-sm text-slate-500">Không có lớp học phần nào</td></tr>
                 ) : filtered.map((s) => {
                   const isFull = (s.enrolledCount || 0) >= (s.capacity || 1);
-                  const isClosed = s.status === "CLOSED";
-                  const statusCfg = isClosed
-                    ? { label: "Đã đóng", color: "#64748b", bg: "#f1f5f9" }
-                    : isFull
-                    ? { label: "Đã đầy", color: "#f59e0b", bg: "#fef3c7" }
-                    : { label: "Đang mở", color: "#10b981", bg: "#d1fae5" };
+                  const statusCfg = getStatusConfig(s);
                   return (
                     <tr key={s.id} style={{ borderTop: "1px solid #f1f5f9" }}>
                       <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.78rem", color: "#10b981", fontWeight: 700 }}>{s.code}</td>
@@ -284,6 +323,9 @@ export function CourseSections() {
                         <div style={{ height: 4, backgroundColor: "#e2e8f0", borderRadius: 9999, marginTop: 4, width: 60, overflow: "hidden" }}>
                           <div style={{ width: `${Math.min(100, ((s.enrolledCount || 0) / (s.capacity || 1)) * 100)}%`, height: "100%", backgroundColor: isFull ? "#ef4444" : "#10b981", borderRadius: 9999 }} />
                         </div>
+                      </td>
+                      <td className="px-4 py-3" style={{ fontSize: "0.82rem", color: "#8b5cf6", fontWeight: 700 }}>
+                        {s.periodsPerSession || 1} tiết/buổi
                       </td>
                       <td className="px-4 py-3">
                         <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "3px 9px", borderRadius: 9999, backgroundColor: statusCfg.bg, color: statusCfg.color }}>

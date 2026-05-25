@@ -303,7 +303,8 @@ Body:
   "code": "SE101",
   "name": "Introduction to Software Engineering",
   "credits": 3,
-  "description": "Intro course",
+  "periodsPerSession": 4,
+  "description": "Intro course. Do not store class meeting time here.",
   "isActive": true
 }
 ```
@@ -407,6 +408,7 @@ Course section response:
   "courseCode": "SE101",
   "courseName": "Introduction to Software Engineering",
   "credits": 3,
+  "periodsPerSession": 4,
   "lecturerId": 1,
   "lecturerCode": "GV001",
   "lecturerName": "Lecturer One",
@@ -436,12 +438,11 @@ Body:
 {
   "roomId": 1,
   "dayOfWeek": 2,
-  "startTime": "07:30",
-  "endTime": "09:30"
+  "startPeriod": 1
 }
 ```
 
-`dayOfWeek` uses `1` to `7`.
+`dayOfWeek` uses `1` to `7`. `startPeriod` uses `1` to `10`; backend calculates `endPeriod`, `startTime`, and `endTime` from the course's `periodsPerSession`.
 
 ## Student - Course Registration
 
@@ -991,8 +992,11 @@ Timetable entry response:
   "roomName": "Room A101",
   "building": "A",
   "dayOfWeek": 2,
-  "startTime": "07:30",
-  "endTime": "09:30"
+  "startPeriod": 1,
+  "endPeriod": 4,
+  "periodsPerSession": 4,
+  "startTime": "07:00",
+  "endTime": "10:40"
 }
 ```
 

@@ -74,7 +74,7 @@ lecturer_id (FK -> lecturers.id): Giảng viên phụ trách.
 
 room (String): Phòng học (Ví dụ: C.A101).
 
-schedule (String): Lịch học (Ví dụ: Mon, 08:00-11:30).
+Lịch học không lưu bằng chuỗi mô tả trong lớp học phần. Admin xếp lịch qua bảng course_section_schedules; số tiết mỗi buổi lấy cố định từ courses.periods_per_session.
 
 capacity (Int): Số lượng sinh viên tối đa.
 

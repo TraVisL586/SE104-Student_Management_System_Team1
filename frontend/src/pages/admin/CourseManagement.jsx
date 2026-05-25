@@ -19,6 +19,8 @@ export function CourseManagement() {
     code: "",
     name: "",
     credits: 3,
+    periodsPerSession: 1,
+    description: "",
     departmentId: "",
   });
   
@@ -51,7 +53,7 @@ export function CourseManagement() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ code: "", name: "", credits: 3, departmentId: departments[0]?.id || "" });
+    setForm({ code: "", name: "", credits: 3, periodsPerSession: 1, description: "", departmentId: departments[0]?.id || "" });
     setShowModal(true);
   };
 
@@ -61,6 +63,8 @@ export function CourseManagement() {
       code: course.code || "",
       name: course.name || "",
       credits: course.credits || 3,
+      periodsPerSession: course.periodsPerSession || 1,
+      description: course.description || "",
       departmentId: course.departmentId || "",
     });
     setShowModal(true);
@@ -139,7 +143,7 @@ export function CourseManagement() {
             <table className="w-full" style={{ minWidth: 600 }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["ID", "Mã Môn", "Tên Môn học", "Khoa quản lý", "Tín chỉ", "Thao tác"].map((h) => (
+                  {["ID", "Mã Môn", "Tên Môn học", "Khoa quản lý", "Tín chỉ", "Số tiết/buổi", "Thao tác"].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -155,6 +159,7 @@ export function CourseManagement() {
                     </td>
                     <td className="px-4 py-3" style={{ fontSize: "0.8rem", color: "#475569" }}>{c.departmentName || "—"}</td>
                     <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#10b981", fontWeight: 600 }}>{c.credits} TC</td>
+                    <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#8b5cf6", fontWeight: 600 }}>{c.periodsPerSession || 1} tiết</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => openEdit(c)} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors">
@@ -198,8 +203,16 @@ export function CourseManagement() {
                 </div>
               </div>
               <div>
+                <label className="block text-xs font-semibold mb-1">Số tiết mỗi buổi *</label>
+                <input required type="number" value={form.periodsPerSession} onChange={e => setForm({...form, periodsPerSession: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg text-sm" min="1" max="10" />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold mb-1">Tên Môn học *</label>
                 <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="VD: Nhập môn Lập trình" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mô tả nội dung</label>
+                <textarea rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full p-2 border rounded-lg text-sm resize-none" placeholder="Mô tả nội dung môn học, không nhập lịch học tại đây" />
               </div>
               
               <div className="flex gap-3 justify-end pt-4 border-t">

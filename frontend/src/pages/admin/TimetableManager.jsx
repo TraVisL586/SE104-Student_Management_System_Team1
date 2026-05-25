@@ -72,16 +72,26 @@ const getSlotId = (startTime) => {
   return SLOTS.find((slot) => slot.start.slice(0, 5) === value)?.id || 1;
 };
 
+const getEndSlotId = (endTime) => {
+  const value = String(endTime || "07:50").slice(0, 5);
+  return SLOTS.find((slot) => slot.end.slice(0, 5) === value)?.id || getSlotId(endTime);
+};
+
 const compactName = (value, fallback = "N/A") => value || fallback;
 
 const buildScheduleEntry = (section, scheduleItem, index = 0) => {
   const colorIndex = index % COLORS.length;
+  const startSlot = scheduleItem.startPeriod || getSlotId(scheduleItem.startTime);
+  const endSlot = scheduleItem.endPeriod || getEndSlotId(scheduleItem.endTime);
   return {
     id: scheduleItem.id,
     sectionId: section.id,
     roomId: scheduleItem.roomId,
     day: (scheduleItem.dayOfWeek || 1) - 1,
-    slot: getSlotId(scheduleItem.startTime),
+    slot: startSlot,
+    startSlot,
+    endSlot,
+    periodsPerSession: scheduleItem.periodsPerSession || section.periodsPerSession || Math.max(1, endSlot - startSlot + 1),
     code: section.code || section.courseCode || `SEC-${section.id}`,
     name: section.courseName || section.name || "Chưa đặt tên môn học",
     room: scheduleItem.roomCode || scheduleItem.roomName || "N/A",
@@ -168,30 +178,25 @@ export function TimetableManager() {
   const conflicts = useMemo(() => {
     const conflictIds = new Set();
     const details = {};
-    const groups = new Map();
 
-    schedule.forEach((entry) => {
-      [
-        ["room", entry.room],
-        ["lecturer", entry.gv],
-      ].forEach(([type, value]) => {
-        const key = `${entry.day}-${entry.slot}-${type}-${value}`;
-        const current = groups.get(key) || [];
-        current.push(entry);
-        groups.set(key, current);
-      });
-    });
+    schedule.forEach((entry, index) => {
+      schedule.slice(index + 1).forEach((other) => {
+        if (entry.day !== other.day) return;
+        const overlap = entry.startSlot <= other.endSlot && entry.endSlot >= other.startSlot;
+        if (!overlap) return;
 
-    groups.forEach((entries, key) => {
-      if (entries.length < 2) return;
-      const [, , type] = key.split("-");
-      entries.forEach((entry) => {
+        const sameRoom = entry.roomId && other.roomId && entry.roomId === other.roomId;
+        const sameLecturer = entry.gv && other.gv && entry.gv === other.gv;
+        if (!sameRoom && !sameLecturer) return;
+
         conflictIds.add(entry.id);
-        const other = entries.find((item) => item.id !== entry.id);
-        details[entry.id] =
-            type === "room"
-                ? `Phòng ${entry.room} bị trùng với ${other?.code || "lớp khác"}`
-                : `Giảng viên ${entry.gv} bị trùng với ${other?.code || "lớp khác"}`;
+        conflictIds.add(other.id);
+        details[entry.id] = sameRoom
+          ? `Phòng ${entry.room} bị trùng với ${other.code}`
+          : `Giảng viên ${entry.gv} bị trùng với ${other.code}`;
+        details[other.id] = sameRoom
+          ? `Phòng ${other.room} bị trùng với ${entry.code}`
+          : `Giảng viên ${other.gv} bị trùng với ${entry.code}`;
       });
     });
 
@@ -208,6 +213,7 @@ export function TimetableManager() {
                 name: section.courseName || section.name || "Chưa đặt tên môn học",
                 gv: section.lecturerName || section.lecturer || "Chưa phân công giảng viên",
                 size: section.classSize || section.capacity || section.maxStudents || "-",
+                periodsPerSession: section.periodsPerSession || 1,
                 faculty: section.departmentName || section.facultyName || "Khoa",
               })),
       [sections]
@@ -237,11 +243,11 @@ export function TimetableManager() {
   );
 
   function entriesForWeeklyCell(day, slot) {
-    return schedule.filter((entry) => entry.day === day && entry.slot === slot);
+    return schedule.filter((entry) => entry.day === day && entry.startSlot <= slot && entry.endSlot >= slot);
   }
 
   function entriesForResourceCell(resource, slot, field) {
-    return schedule.filter((entry) => entry[field] === resource && entry.slot === slot);
+    return schedule.filter((entry) => entry[field] === resource && entry.startSlot <= slot && entry.endSlot >= slot);
   }
 
   function openQuickAdd(day, slot, room = "") {
@@ -263,7 +269,21 @@ export function TimetableManager() {
     event.preventDefault();
     const day = Number(form.day);
     const slot = Number(form.slot);
-    const roomConflict = schedule.find((entry) => entry.day === day && entry.slot === slot && entry.roomId === Number(form.roomId));
+    const selectedSection = sections.find((section) => section.id === Number(sectionId));
+    const periods = selectedSection?.periodsPerSession || 1;
+    const endSlot = slot + periods - 1;
+
+    if (endSlot > SLOTS.length) {
+      showToast("warning", "Tiết học không hợp lệ", `Môn này cần ${periods} tiết, không đủ tiết trống trong ngày.`);
+      return;
+    }
+
+    const roomConflict = schedule.find((entry) =>
+      entry.day === day
+      && entry.roomId === Number(form.roomId)
+      && entry.startSlot <= endSlot
+      && entry.endSlot >= slot
+    );
 
     if (roomConflict) {
       showToast(
@@ -291,8 +311,7 @@ export function TimetableManager() {
         return;
       }
 
-      const selectedSlot = SLOTS.find((slot) => slot.id === Number(form.slot));
-      if (!selectedSlot) {
+      if (!SLOTS.some((slot) => slot.id === Number(form.slot))) {
         showToast("warning", "Tiết học không hợp lệ", "Vui lòng chọn lại tiết học.");
         return;
       }
@@ -300,8 +319,7 @@ export function TimetableManager() {
       const updatedSection = await adminSchedulingService.addCourseSectionSchedule(sectionId, {
         roomId: Number(form.roomId),
         dayOfWeek: Number(form.day) + 1,
-        startTime: selectedSlot.start,
-        endTime: selectedSlot.end,
+        startPeriod: Number(form.slot),
       });
 
       showToast("success", "Đã thêm vào TKB", `Lớp ${sectionId} - ${DAYS[form.day]}`);
@@ -385,6 +403,7 @@ export function TimetableManager() {
             {[
               ["Phòng", entry.room],
               ["GV", entry.gv],
+              ["Tiết", `${entry.startSlot}-${entry.endSlot}`],
               ["Sĩ số", entry.size],
             ].map(([label, value]) => (
                 <span
@@ -747,6 +766,7 @@ export function TimetableManager() {
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>
                                     <span style={pill}><UserRound size={10} /> {compactName(course.gv)}</span>
                                     <span style={pill}><UsersRound size={10} /> {course.size}</span>
+                                    <span style={pill}><Clock3 size={10} /> {course.periodsPerSession} tiết/buổi</span>
                                     <span style={pill}><Layers3 size={10} /> {course.faculty}</span>
                                   </div>
                                 </div>

@@ -29,5 +29,8 @@ public class CourseSectionRequest {
     @Min(value = 1, message = "Capacity must be at least 1")
     private Integer capacity;
 
+    @Min(value = 1, message = "Periods per session must be at least 1")
+    private Integer periodsPerSession;
+
     private CourseSectionStatus status;
 }
