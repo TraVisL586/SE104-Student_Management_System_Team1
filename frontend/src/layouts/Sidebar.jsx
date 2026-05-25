@@ -8,6 +8,7 @@ import {
   BarChart3, UnlockKeyhole,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
+import { getCurrentSemesterInfo } from "../utils/dateUtils";
 
 const NAV_BY_ROLE = {
   STUDENT: [
@@ -83,6 +84,7 @@ export function Sidebar({ open, onClose }) {
   const role = user?.role ?? "PUBLIC";
   const navItems = NAV_BY_ROLE[role] ?? [];
   const roleColor = ROLE_COLORS[role];
+  const { academicYear, semesterName, week, maxWeeks } = getCurrentSemesterInfo();
 
   function handleLogout() {
     logout();
@@ -195,14 +197,14 @@ export function Sidebar({ open, onClose }) {
             style={{ backgroundColor: "#0f2040" }}
           >
             <p style={{ color: "#94a3b8", fontSize: "0.68rem" }}>Năm học</p>
-            <p style={{ color: "white", fontSize: "0.82rem", fontWeight: 600 }}>2025 / 2026</p>
+            <p style={{ color: "white", fontSize: "0.82rem", fontWeight: 600 }}>{academicYear}</p>
             <div
               className="mt-2 rounded-full overflow-hidden"
               style={{ height: 4, backgroundColor: "#1e3a6e" }}
             >
               <div
                 style={{
-                  width: "65%",
+                  width: `${(week / maxWeeks) * 100}%`,
                   height: "100%",
                   backgroundColor: roleColor.color,
                   borderRadius: 9999,
@@ -210,7 +212,7 @@ export function Sidebar({ open, onClose }) {
               />
             </div>
             <p style={{ color: "#475569", fontSize: "0.65rem", marginTop: 3 }}>
-              Học kỳ 2 — Tuần 18/28
+              {semesterName} — Tuần {week}/{maxWeeks}
             </p>
           </div>
           <button

@@ -393,9 +393,9 @@ INSERT INTO public.course_section_schedules (course_section_id, room_id, day_of_
 SELECT
     ns.id,
     r.id,
-    ((ns.lecturer_rn - 1) % 6) + 1,
-    (TIME '07:30' + ((((ns.lecturer_rn - 1) / 6) % 4) * INTERVAL '150 minutes'))::time,
-    (TIME '09:30' + ((((ns.lecturer_rn - 1) / 6) % 4) * INTERVAL '150 minutes'))::time
+    ((ns.rn - 1) % 6) + 2,
+    (TIME '07:30' + ((((ns.rn - 1) / 6) % 4) * INTERVAL '150 minutes'))::time,
+    (TIME '09:30' + ((((ns.rn - 1) / 6) % 4) * INTERVAL '150 minutes'))::time
 FROM numbered_sections ns
 JOIN public.rooms r ON r.code = concat(
     chr(65 + ((((ns.rn - 1) % 30) / 6)::int)),
@@ -418,9 +418,9 @@ INSERT INTO public.course_section_schedules (course_section_id, room_id, day_of_
 SELECT
     fs.id,
     r.id,
-    ((fs.lecturer_rn + 2) % 6) + 1,
-    (TIME '13:00' + (((fs.lecturer_rn % 2) * 150) * INTERVAL '1 minute'))::time,
-    (TIME '15:00' + (((fs.lecturer_rn % 2) * 150) * INTERVAL '1 minute'))::time
+    ((fs.rn + 2) % 6) + 2,
+    (TIME '13:00' + (((fs.rn % 2) * 150) * INTERVAL '1 minute'))::time,
+    (TIME '15:00' + (((fs.rn % 2) * 150) * INTERVAL '1 minute'))::time
 FROM four_credit_sections fs
 JOIN public.rooms r ON r.code = concat(
     chr(65 + ((((fs.rn + 7) % 30) / 6)::int)),
