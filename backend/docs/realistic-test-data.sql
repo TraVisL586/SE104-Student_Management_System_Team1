@@ -463,7 +463,7 @@ planned_active_enrollments AS (
     CROSS JOIN generate_series(0, 5) slot_no
     JOIN active_sections ac
         ON ac.course_no = (((ss.student_no + (slot_no * 7) - 1) % 40) + 1)
-       AND ac.section_group = (((ss.student_no + slot_no) % 2) + 1)
+       AND ac.section_group = ((slot_no % 2) + 1)
     WHERE ss.academic_status = 'STUDYING'
 )
 INSERT INTO public.enrollments (student_id, course_section_id, status, enrolled_at, updated_at)

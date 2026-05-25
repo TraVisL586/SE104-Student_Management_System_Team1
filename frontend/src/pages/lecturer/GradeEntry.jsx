@@ -67,12 +67,13 @@ export function GradeEntry() {
       const uniqueClasses = [];
       const seen = new Set();
       data.forEach(item => {
-        if (!seen.has(item.sectionId)) {
-          seen.add(item.sectionId);
+        if (!seen.has(item.courseSectionId)) {
+          seen.add(item.courseSectionId);
           uniqueClasses.push({
-            id: item.sectionId,
-            code: item.sectionCode || item.courseCode,
+            id: item.courseSectionId,
+            code: item.courseSectionCode || item.courseCode,
             name: item.courseName,
+            semesterCode: item.semesterCode,
           });
         }
       });

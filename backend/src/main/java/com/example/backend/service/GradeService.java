@@ -36,10 +36,46 @@ public class GradeService {
         Lecturer lecturer = findLecturerByUsername(username);
         assertLecturerTeachesSection(lecturer, sectionId);
 
-        return gradeRepository.findByEnrollmentCourseSectionId(sectionId).stream()
-                .map(this::mapGrade)
+        return enrollmentRepository.findByCourseSectionId(sectionId).stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.ENROLLED
+                        || e.getStatus() == EnrollmentStatus.PASSED
+                        || e.getStatus() == EnrollmentStatus.FAILED)
+                .map(this::mapEnrollmentToGradeResponse)
                 .toList();
     }
+
+    private GradeResponse mapEnrollmentToGradeResponse(Enrollment enrollment) {
+        CourseSection section = enrollment.getCourseSection();
+        return gradeRepository.findByEnrollmentId(enrollment.getId())
+                .map(this::mapGrade)
+                .orElseGet(() -> {
+                    GradeResponse response = new GradeResponse();
+                    response.setId(null);
+                    response.setEnrollmentId(enrollment.getId());
+
+                    response.setStudentId(enrollment.getStudent().getId());
+                    response.setStudentCode(enrollment.getStudent().getStudentCode());
+                    response.setStudentName(enrollment.getStudent().getFullName());
+
+                    response.setCourseSectionId(section.getId());
+                    response.setCourseSectionCode(section.getCode());
+
+                    response.setCourseId(section.getCourse().getId());
+                    response.setCourseCode(section.getCourse().getCode());
+                    response.setCourseName(section.getCourse().getName());
+
+                    response.setProcessScore(null);
+                    response.setMidtermScore(null);
+                    response.setFinalScore(null);
+                    response.setTotalScore(null);
+                    response.setStatus(GradeStatus.DRAFT);
+                    response.setPublishedAt(null);
+                    response.setUpdatedAt(null);
+
+                    return response;
+                });
+    }
+
 
     @Transactional
     public GradeResponse updateGradeForLecturer(String username, Integer enrollmentId, GradeRequest request) {

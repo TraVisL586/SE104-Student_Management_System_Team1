@@ -43,12 +43,13 @@ export function ClassRoster() {
       const uniqueClasses = [];
       const seen = new Set();
       data.forEach(item => {
-        if (!seen.has(item.sectionId)) {
-          seen.add(item.sectionId);
+        if (!seen.has(item.courseSectionId)) {
+          seen.add(item.courseSectionId);
           uniqueClasses.push({
-            id: item.sectionId,
-            code: item.sectionCode || item.courseCode,
+            id: item.courseSectionId,
+            code: item.courseSectionCode || item.courseCode,
             name: item.courseName,
+            semesterCode: item.semesterCode,
             capacity: item.capacity,
             enrolled: item.enrolledCount
           });
@@ -80,7 +81,7 @@ export function ClassRoster() {
 
   const filteredStudents = students.filter(
     (s) =>
-      s.studentName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       s.studentCode?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -169,8 +170,8 @@ export function ClassRoster() {
                         <tr key={s.studentId} style={{ borderTop: "1px solid #f1f5f9" }}>
                           <td className="px-4 py-3" style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{i + 1}</td>
                           <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#8b5cf6", fontWeight: 600 }}>{s.studentCode}</td>
-                          <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 500 }}>{s.studentName}</td>
-                          <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.studentEmail}</td>
+                          <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 500 }}>{s.fullName}</td>
+                          <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.email}</td>
                           <td className="px-4 py-3">
                             <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "2px 8px", borderRadius: 9999, backgroundColor: st.bg, color: st.color }}>
                               {st.label}
