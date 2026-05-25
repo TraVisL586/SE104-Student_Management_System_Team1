@@ -100,10 +100,11 @@ public class TimetableRosterService {
     public ClassRosterResponse getRoster(Integer sectionId) {
         CourseSection section = findCourseSection(sectionId);
 
-        List<Enrollment> enrollments = enrollmentRepository.findByCourseSectionIdAndStatus(
-                sectionId,
-                EnrollmentStatus.ENROLLED
-        );
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseSectionId(sectionId).stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.ENROLLED
+                        || e.getStatus() == EnrollmentStatus.PASSED
+                        || e.getStatus() == EnrollmentStatus.FAILED)
+                .toList();
 
         ClassRosterResponse response = mapRoster(section);
         response.setStudents(enrollments.stream()
@@ -158,6 +159,8 @@ public class TimetableRosterService {
         response.setSemesterId(section.getSemester().getId());
         response.setSemesterCode(section.getSemester().getCode());
         response.setSemesterName(section.getSemester().getName());
+
+        response.setEnrolledCount(section.getEnrolledCount());
 
         response.setLecturerId(section.getLecturer().getId());
         response.setLecturerCode(section.getLecturer().getLecturerCode());

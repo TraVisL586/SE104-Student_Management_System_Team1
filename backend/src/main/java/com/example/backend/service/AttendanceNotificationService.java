@@ -58,10 +58,11 @@ public class AttendanceNotificationService {
         CourseSection section = findCourseSection(sectionId);
         assertLecturerTeachesSection(lecturer, section);
 
-        List<Enrollment> enrollments = enrollmentRepository.findByCourseSectionIdAndStatus(
-                sectionId,
-                EnrollmentStatus.ENROLLED
-        );
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseSectionId(sectionId).stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.ENROLLED
+                        || e.getStatus() == EnrollmentStatus.PASSED
+                        || e.getStatus() == EnrollmentStatus.FAILED)
+                .toList();
 
         Map<Integer, Student> enrolledStudents = enrollments.stream()
                 .map(Enrollment::getStudent)
@@ -121,10 +122,10 @@ public class AttendanceNotificationService {
         Student student = findStudentByUsername(username);
 
         if (sectionId != null) {
-            if (!enrollmentRepository.existsByStudentIdAndCourseSectionIdAndStatus(
+            if (!enrollmentRepository.existsByStudentIdAndCourseSectionIdAndStatusIn(
                     student.getId(),
                     sectionId,
-                    EnrollmentStatus.ENROLLED
+                    List.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.PASSED, EnrollmentStatus.FAILED)
             )) {
                 throw new RuntimeException("Student is not enrolled in this course section");
             }
@@ -258,10 +259,11 @@ public class AttendanceNotificationService {
                         attendanceDate
                 );
 
-        int totalStudents = enrollmentRepository.findByCourseSectionIdAndStatus(
-                section.getId(),
-                EnrollmentStatus.ENROLLED
-        ).size();
+        int totalStudents = (int) enrollmentRepository.findByCourseSectionId(section.getId()).stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.ENROLLED
+                        || e.getStatus() == EnrollmentStatus.PASSED
+                        || e.getStatus() == EnrollmentStatus.FAILED)
+                .count();
 
         AttendanceResponse.Session response = new AttendanceResponse.Session();
         response.setCourseSectionId(section.getId());

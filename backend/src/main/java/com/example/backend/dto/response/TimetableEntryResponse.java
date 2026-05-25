@@ -20,6 +20,8 @@ public class TimetableEntryResponse {
     private String semesterCode;
     private String semesterName;
 
+    private Integer enrolledCount;
+
     private Integer lecturerId;
     private String lecturerCode;
     private String lecturerName;

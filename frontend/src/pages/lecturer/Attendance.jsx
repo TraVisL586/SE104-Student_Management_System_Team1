@@ -117,7 +117,7 @@ export function Attendance() {
     try {
       setSubmitting(true);
       const attendanceData = {
-        date: date,
+        attendanceDate: date,
         records: students.map(s => ({
           studentId: s.studentId,
           status: records[s.studentId] || "PRESENT",

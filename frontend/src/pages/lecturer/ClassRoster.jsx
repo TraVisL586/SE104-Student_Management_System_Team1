@@ -79,6 +79,36 @@ export function ClassRoster() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!students || students.length === 0) {
+      showToast("error", "Lỗi", "Không có dữ liệu để xuất");
+      return;
+    }
+
+    const headers = ["STT", "MSSV", "Họ và tên", "Email", "Trạng thái"];
+    const rows = students.map((s, i) => {
+      const st = STATUS[s.academicStatus] ?? STATUS.ACTIVE;
+      return [
+        i + 1,
+        s.studentCode,
+        `"${s.fullName || ""}"`,
+        s.email,
+        st.label
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `DanhSachLop_${cls?.code || "Export"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("success", "Thành công", "Đã xuất danh sách lớp");
+  };
+
   const filteredStudents = students.filter(
     (s) =>
       s.fullName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -141,7 +171,11 @@ export function ClassRoster() {
                     style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 10, border: "1px solid #e2e8f0", fontSize: "0.82rem", outline: "none", width: 200 }}
                   />
                 </div>
-                <button className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.78rem", color: "#475569" }}>
+                <button 
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl" 
+                  style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.78rem", color: "#475569" }}
+                >
                   <Download size={13} /> Xuất
                 </button>
               </div>
