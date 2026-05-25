@@ -43,12 +43,13 @@ export function ClassRoster() {
       const uniqueClasses = [];
       const seen = new Set();
       data.forEach(item => {
-        if (!seen.has(item.sectionId)) {
-          seen.add(item.sectionId);
+        if (!seen.has(item.courseSectionId)) {
+          seen.add(item.courseSectionId);
           uniqueClasses.push({
-            id: item.sectionId,
-            code: item.sectionCode || item.courseCode,
+            id: item.courseSectionId,
+            code: item.courseSectionCode || item.courseCode,
             name: item.courseName,
+            semesterCode: item.semesterCode,
             capacity: item.capacity,
             enrolled: item.enrolledCount
           });
@@ -78,9 +79,39 @@ export function ClassRoster() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!students || students.length === 0) {
+      showToast("error", "Lỗi", "Không có dữ liệu để xuất");
+      return;
+    }
+
+    const headers = ["STT", "MSSV", "Họ và tên", "Email", "Trạng thái"];
+    const rows = students.map((s, i) => {
+      const st = STATUS[s.academicStatus] ?? STATUS.ACTIVE;
+      return [
+        i + 1,
+        s.studentCode,
+        `"${s.fullName || ""}"`,
+        s.email,
+        st.label
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `DanhSachLop_${cls?.code || "Export"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("success", "Thành công", "Đã xuất danh sách lớp");
+  };
+
   const filteredStudents = students.filter(
     (s) =>
-      s.studentName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       s.studentCode?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -140,7 +171,11 @@ export function ClassRoster() {
                     style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 10, border: "1px solid #e2e8f0", fontSize: "0.82rem", outline: "none", width: 200 }}
                   />
                 </div>
-                <button className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.78rem", color: "#475569" }}>
+                <button 
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl" 
+                  style={{ border: "1px solid #e2e8f0", background: "none", cursor: "pointer", fontSize: "0.78rem", color: "#475569" }}
+                >
                   <Download size={13} /> Xuất
                 </button>
               </div>
@@ -169,8 +204,8 @@ export function ClassRoster() {
                         <tr key={s.studentId} style={{ borderTop: "1px solid #f1f5f9" }}>
                           <td className="px-4 py-3" style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{i + 1}</td>
                           <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#8b5cf6", fontWeight: 600 }}>{s.studentCode}</td>
-                          <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 500 }}>{s.studentName}</td>
-                          <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.studentEmail}</td>
+                          <td className="px-4 py-3" style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 500 }}>{s.fullName}</td>
+                          <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#64748b" }}>{s.email}</td>
                           <td className="px-4 py-3">
                             <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "2px 8px", borderRadius: 9999, backgroundColor: st.bg, color: st.color }}>
                               {st.label}

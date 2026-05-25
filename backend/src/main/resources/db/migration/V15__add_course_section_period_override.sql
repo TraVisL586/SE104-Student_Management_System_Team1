@@ -2,7 +2,7 @@ ALTER TABLE public.course_sections
     ADD COLUMN IF NOT EXISTS periods_per_session int4;
 
 UPDATE public.course_sections cs
-SET periods_per_session = c.periods_per_session
+SET periods_per_session = cs.periods_per_session
 FROM public.courses c
 WHERE cs.course_id = c.id
   AND cs.periods_per_session IS NULL;

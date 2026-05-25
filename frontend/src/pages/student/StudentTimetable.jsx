@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import timetableService from "../../services/timetableService";
+import { getCurrentSemesterInfo } from "../../utils/dateUtils";
 
 const DAYS   = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 const SLOTS  = [
@@ -17,25 +18,17 @@ const SLOTS  = [
   { id: 10, label: "Tiết 10", time: "16:45-17:35" },
 ];
 
-// Calculate current week from today's date
-const getCurrentWeek = () => {
-  const semesterStart = new Date(2025, 8, 1); // Sept 1, 2025 (Week 1)
-  const today = new Date();
-  const daysElapsed = Math.floor((today - semesterStart) / (1000 * 60 * 60 * 24));
-  const week = Math.floor(daysElapsed / 7) + 1;
-  return Math.max(1, Math.min(week, 28)); // Clamp between 1-28
-};
+// We will use getCurrentSemesterInfo from dateUtils to get the week and semesterStart
 
 export function StudentTimetable() {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [week, setWeek] = useState(getCurrentWeek()); // Current week, not hardcoded
+  const { academicYear, semesterName, maxWeeks, week: initialWeek, semesterStart } = getCurrentSemesterInfo();
+  const [week, setWeek] = useState(initialWeek);
   const { showToast } = useToast();
 
   // Calculate dates dynamically based on week number
-  // Semester starts week 1 on Sept 1, 2025 (Monday)
   const DATES = (() => {
-    const semesterStart = new Date(2025, 8, 1); // Sept 1, 2025
     const daysOffset = (week - 1) * 7;
     const weekStart = new Date(semesterStart);
     weekStart.setDate(weekStart.getDate() + daysOffset);
@@ -137,7 +130,7 @@ export function StudentTimetable() {
         <div>
           <h1 style={{ color: "#1e293b" }}>Thời khóa biểu</h1>
           <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: 2 }}>
-            Học kỳ 2 — 2025/2026 · Tuần {week}/28
+            {semesterName} — {academicYear} · Tuần {week}/{maxWeeks}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -145,9 +138,9 @@ export function StudentTimetable() {
             <ChevronLeft size={16} color="#475569" />
           </button>
           <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "#1e293b", padding: "0 8px" }}>
-            Tuần {week}: {DATES[0]} – {DATES[5]}/2026
+            Tuần {week}: {DATES[0]} – {DATES[5]}
           </span>
-          <button onClick={() => setWeek((w) => Math.min(28, w + 1))} disabled={loading} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1 }}>
+          <button onClick={() => setWeek((w) => Math.min(maxWeeks, w + 1))} disabled={loading} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1 }}>
             <ChevronRight size={16} color="#475569" />
           </button>
         </div>

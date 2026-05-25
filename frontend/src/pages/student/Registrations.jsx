@@ -21,6 +21,7 @@ export function Registrations() {
   const [loadingSections, setLoadingSections] = useState(false);
   const [sectionError, setSectionError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(15);
   const { showToast } = useToast();
   const initializedRef = useRef(false);
 
@@ -61,6 +62,8 @@ export function Registrations() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return openSections.filter((section) => {
+      const isEnrolled = registeredCourseIds.has(section.courseId) || registeredSectionIds.has(section.id);
+      if (isEnrolled) return false;
       const matchesKeyword =
         !term ||
         section.courseName?.toLowerCase().includes(term) ||
@@ -69,7 +72,7 @@ export function Registrations() {
       const matchesKhoa = khoa === "Tất cả";
       return matchesKeyword && matchesKhoa;
     });
-  }, [openSections, search, khoa]);
+  }, [openSections, search, khoa, registeredCourseIds, registeredSectionIds]);
 
   const semesterLabel = useMemo(() => {
     const found = openSections.find((s) => s.semesterId === activeSemesterId) || openSections[0];
@@ -109,7 +112,8 @@ export function Registrations() {
 
   useEffect(() => {
     setSearch(searchParam);
-  }, [searchParam]);
+    setVisibleCount(15);
+  }, [searchParam, khoa]);
 
   useEffect(() => {
     let active = true;
@@ -273,7 +277,7 @@ export function Registrations() {
             <table className="w-full" style={{ backgroundColor: "#fff" }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  {["Mã MH", "Tên môn học", "TC", "Giảng viên", "Chỗ trống", ""].map((h) => (
+                  {["Mã MH", "Tên môn học", "TC", "Lịch học", "Giảng viên", "Chỗ trống", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -296,25 +300,24 @@ export function Registrations() {
                 )}
                 {!sectionError && showLoading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center" style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+                    <td colSpan={7} className="px-4 py-6 text-center" style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
                       Đang tải dữ liệu...
                     </td>
                   </tr>
                 )}
                 {!sectionError && !showLoading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center" style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+                    <td colSpan={7} className="px-4 py-6 text-center" style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
                       Không có lớp học phần đang mở.
                     </td>
                   </tr>
                 )}
-                {filtered.map((section) => {
-                  const isEnrolled = registeredCourseIds.has(section.courseId) || registeredSectionIds.has(section.id);
+                {filtered.slice(0, visibleCount).map((section) => {
                   const inCartCourse = cart.some((x) => x.courseId === section.courseId);
                   const seatsLeft = getAvailableSeats(section);
                   const full = seatsLeft <= 0;
                   return (
-                    <tr key={section.id} style={{ borderTop: "1px solid #f1f5f9", opacity: isEnrolled ? 0.5 : 1 }}>
+                    <tr key={section.id} style={{ borderTop: "1px solid #f1f5f9" }}>
                       <td className="px-4 py-3" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#2563eb", fontWeight: 600 }}>
                         {section.courseCode || section.code}
                       </td>
@@ -325,6 +328,21 @@ export function Registrations() {
                         )}
                       </td>
                       <td className="px-4 py-3" style={{ fontSize: "0.78rem", color: "#475569" }}>{section.credits}</td>
+                      <td className="px-4 py-3" style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                        {section.schedules && section.schedules.length > 0 ? (
+                          <div className="space-y-1">
+                            {section.schedules.map((s, idx) => (
+                              <div key={idx} style={{ whiteSpace: "nowrap" }}>
+                                {s.dayOfWeek === 8 ? "CN" : `T${s.dayOfWeek}`}: {s.startTime.substring(0, 5)} - {s.endTime.substring(0, 5)}
+                                <br />
+                                <span style={{ fontSize: "0.65rem", color: "#94a3b8" }}>Phòng: {s.roomCode}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          "Chưa xếp lịch"
+                        )}
+                      </td>
                       <td className="px-4 py-3" style={{ fontSize: "0.75rem", color: "#64748b" }}>{section.lecturerName || "Chưa có"}</td>
                       <td className="px-4 py-3">
                         <span style={{ fontSize: "0.72rem", color: full ? "#ef4444" : "#10b981", fontWeight: 600 }}>
@@ -332,9 +350,7 @@ export function Registrations() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {isEnrolled ? (
-                          <span style={{ fontSize: "0.7rem", color: "#10b981", fontWeight: 600 }}>✓ Đã đăng ký</span>
-                        ) : inCartCourse ? (
+                        {inCartCourse ? (
                           <span style={{ fontSize: "0.7rem", color: "#8b5cf6", fontWeight: 600 }}>✓ Trong giỏ</span>
                         ) : (
                           <button
@@ -356,59 +372,118 @@ export function Registrations() {
                     </tr>
                   );
                 })}
+                {visibleCount < filtered.length && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-4 text-center">
+                      <button
+                        onClick={() => setVisibleCount((prev) => prev + 15)}
+                        className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                      >
+                        Hiển thị thêm {Math.min(15, filtered.length - visibleCount)} môn
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Cart */}
-        <div className="rounded-2xl" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0", alignSelf: "start" }}>
-          <div className="px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
-            <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Giỏ Đăng ký</p>
-            <p style={{ fontSize: "0.72rem", color: "#64748b" }}>{cart.length} môn · {cartTC} TC</p>
-          </div>
-          {cart.length === 0 ? (
-            <div style={{ padding: "32px 20px", textAlign: "center" }}>
-              <BookOpen size={28} color="#cbd5e1" style={{ margin: "0 auto 8px" }} />
-              <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Chưa chọn môn học nào</p>
+        {/* Right Sidebar: Cart & Registered Courses */}
+        <div 
+          className="space-y-5"
+          style={{ 
+            alignSelf: "start", 
+            position: "sticky", 
+            top: "24px",
+            maxHeight: "calc(100vh - 48px)",
+            overflowY: "auto",
+            paddingRight: "8px"
+          }}
+        >
+          {/* Cart */}
+          <div className="rounded-2xl shadow-sm" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Giỏ Đăng ký</p>
+              <p style={{ fontSize: "0.72rem", color: "#64748b" }}>{cart.length} môn · {cartTC} TC</p>
             </div>
-          ) : (
-            <div>
-              {cart.map((c) => (
-                <div key={c.id} className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <div>
-                    <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1e293b" }}>{c.courseName}</p>
-                    <p style={{ fontSize: "0.7rem", color: "#64748b" }}>{c.courseCode || c.code} · {c.credits} TC</p>
+            {cart.length === 0 ? (
+              <div style={{ padding: "32px 20px", textAlign: "center" }}>
+                <BookOpen size={28} color="#cbd5e1" style={{ margin: "0 auto 8px" }} />
+                <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Chưa chọn môn học nào</p>
+              </div>
+            ) : (
+              <div>
+                {cart.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <div>
+                      <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1e293b" }}>{c.courseName}</p>
+                      <p style={{ fontSize: "0.7rem", color: "#64748b" }}>{c.courseCode || c.code} · {c.credits} TC</p>
+                      {c.schedules && c.schedules.length > 0 && (
+                        <p style={{ fontSize: "0.7rem", color: "#64748b", marginTop: 2 }}>
+                          {c.schedules.map(s => `${s.dayOfWeek === 8 ? 'CN' : 'T' + s.dayOfWeek} (${s.startTime.substring(0,5)}-${s.endTime.substring(0,5)})`).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={() => removeFromCart(c.id)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                      <Trash2 size={14} color="#ef4444" />
+                    </button>
                   </div>
-                  <button onClick={() => removeFromCart(c.id)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                    <Trash2 size={14} color="#ef4444" />
+                ))}
+                <div className="px-4 py-4">
+                  {totalTC > MAX_TC && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl mb-3" style={{ backgroundColor: "#fef2f2" }}>
+                      <AlertTriangle size={14} color="#ef4444" />
+                      <p style={{ fontSize: "0.75rem", color: "#991b1b" }}>Vượt giới hạn {MAX_TC} TC!</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={submitRegistration}
+                    disabled={totalTC > MAX_TC || submitting || cart.length === 0}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl"
+                    style={{
+                      backgroundColor: totalTC > MAX_TC || submitting || cart.length === 0 ? "#e2e8f0" : "#1a3461",
+                      color: totalTC > MAX_TC || submitting || cart.length === 0 ? "#94a3b8" : "white",
+                      border: "none", cursor: totalTC > MAX_TC || submitting || cart.length === 0 ? "not-allowed" : "pointer",
+                      fontSize: "0.85rem", fontWeight: 600,
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    {submitting ? "Đang đăng ký..." : "Xác nhận Đăng ký"}
                   </button>
                 </div>
-              ))}
-              <div className="px-4 py-4">
-                {totalTC > MAX_TC && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl mb-3" style={{ backgroundColor: "#fef2f2" }}>
-                    <AlertTriangle size={14} color="#ef4444" />
-                    <p style={{ fontSize: "0.75rem", color: "#991b1b" }}>Vượt giới hạn {MAX_TC} TC!</p>
-                  </div>
-                )}
-                <button
-                  onClick={submitRegistration}
-                  disabled={totalTC > MAX_TC || submitting || cart.length === 0}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl"
-                  style={{
-                    backgroundColor: totalTC > MAX_TC || submitting || cart.length === 0 ? "#e2e8f0" : "#1a3461",
-                    color: totalTC > MAX_TC || submitting || cart.length === 0 ? "#94a3b8" : "white",
-                    border: "none", cursor: totalTC > MAX_TC || submitting || cart.length === 0 ? "not-allowed" : "pointer",
-                    fontSize: "0.85rem", fontWeight: 600,
-                  }}
-                >
-                  <CheckCircle2 size={16} />
-                  {submitting ? "Đang đăng ký..." : "Xác nhận Đăng ký"}
-                </button>
               </div>
+            )}
+          </div>
+
+          {/* Registered Courses */}
+          <div className="rounded-2xl shadow-sm" style={{ backgroundColor: "#fff", border: "1px solid #e2e8f0" }}>
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b" }}>Đã đăng ký</p>
+              <p style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 600 }}>{activeRegistrations.length} môn · {enrolledTC} TC</p>
             </div>
-          )}
+            {activeRegistrations.length === 0 ? (
+              <div style={{ padding: "24px 20px", textAlign: "center" }}>
+                <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Bạn chưa đăng ký môn nào.</p>
+              </div>
+            ) : (
+              <div>
+                {activeRegistrations.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between px-4 py-2" style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <div style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
+                      <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1e293b" }}>{r.courseName}</p>
+                      <p style={{ fontSize: "0.68rem", color: "#64748b", marginTop: 1 }}>
+                        {r.courseCode} · Lớp: {r.courseSectionCode || r.sectionCode} · {r.credits} TC
+                      </p>
+                    </div>
+                    <div style={{ fontSize: "0.68rem", color: r.status === "WAITLISTED" ? "#f59e0b" : "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>
+                      {r.status === "WAITLISTED" ? "Đang chờ" : "Thành công"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

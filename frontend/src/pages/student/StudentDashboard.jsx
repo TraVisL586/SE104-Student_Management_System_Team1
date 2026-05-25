@@ -3,14 +3,15 @@ import { useRole } from "../../context/RoleContext";
 import { useToast } from "../../context/ToastContext";
 import { useEffect, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LabelList,
 } from "recharts";
 import {
-  BookOpen, Calendar, Award, CreditCard, FileText, AlertTriangle,
+  BookOpen, Calendar, Award, CreditCard, FileText,
   TrendingUp, Clock, ChevronRight, Loader2, Key,
 } from "lucide-react";
 import studentService from "../../services/studentService";
 import timetableService from "../../services/timetableService";
+import courseRegistrationService from "../../services/courseRegistrationService";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 
 export function StudentDashboard() {
@@ -21,20 +22,23 @@ export function StudentDashboard() {
   const [profile, setProfile] = useState(null);
   const [grades, setGrades] = useState([]);
   const [timetable, setTimetable] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
 
   useEffect(() => {
     const loadAll = async () => {
       try {
         setLoading(true);
-        const [profileData, gradesData, ttData] = await Promise.allSettled([
+        const [profileData, gradesData, ttData, regData] = await Promise.allSettled([
           studentService.getMyProfile(),
           studentService.getMyGrades(),
           timetableService.getStudentTimetable(),
+          courseRegistrationService.getMyRegistrations().catch(() => []),
         ]);
 
         if (profileData.status === "fulfilled") setProfile(profileData.value);
         if (gradesData.status === "fulfilled") setGrades(Array.isArray(gradesData.value) ? gradesData.value : []);
         if (ttData.status === "fulfilled") setTimetable(Array.isArray(ttData.value) ? ttData.value : []);
+        if (regData.status === "fulfilled") setRegistrations(Array.isArray(regData.value) ? regData.value : []);
       } catch (err) {
         showToast('error', 'Lỗi', 'Không thể tải dữ liệu dashboard');
       } finally {
@@ -67,10 +71,47 @@ export function StudentDashboard() {
   });
   const cumulativeGPA = totalCredits > 0 ? (totalScorePoints / totalCredits) : 0;
 
-  // Build GPA chart from grades
-  const GPA_TREND = publishedGrades.length > 0
-    ? [{ ky: "Tích lũy", gpa: parseFloat(cumulativeGPA.toFixed(2)) }]
-    : [{ ky: "—", gpa: 0 }];
+  // Build GPA chart from grades grouped by semester
+  let GPA_TREND = [];
+  if (publishedGrades.length > 0) {
+    const groups = {};
+    publishedGrades.forEach(g => {
+      const reg = registrations.find(r => r.id === g.enrollmentId);
+      const semKey = reg ? reg.semesterId : "unknown";
+      
+      let semName = "HK Khác";
+      if (reg && reg.semesterName) {
+        semName = reg.semesterName
+          .replace(/Học kỳ|Hoc ky/gi, "HK")
+          .replace(/năm học|nam hoc/gi, "")
+          .trim();
+      }
+      
+      if (!groups[semKey]) {
+        groups[semKey] = { semesterId: semKey, ky: semName, totalScore: 0, totalCredits: 0 };
+      }
+      const credits = reg ? reg.credits : (g.credits || 3);
+      groups[semKey].totalCredits += credits;
+      if (g.totalScore != null) groups[semKey].totalScore += (g.totalScore * credits);
+    });
+
+    GPA_TREND = Object.values(groups)
+      .sort((a, b) => {
+        if (a.semesterId === "unknown") return 1;
+        if (b.semesterId === "unknown") return -1;
+        return a.semesterId - b.semesterId;
+      })
+      .map(group => ({
+        ky: group.ky,
+        gpa: group.totalCredits > 0 ? parseFloat((group.totalScore / group.totalCredits).toFixed(2)) : 0
+      }));
+
+    if (GPA_TREND.length === 1) {
+      GPA_TREND = [{ ky: "Bắt đầu", gpa: 0 }, GPA_TREND[0]];
+    }
+  } else {
+    GPA_TREND = [{ ky: "—", gpa: 0 }];
+  }
 
   const mapDayOfWeek = (dayNum) => {
     const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
@@ -213,13 +254,24 @@ export function StudentDashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="ky" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-              <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+              <XAxis dataKey="ky" tick={{ fontSize: 11, fill: "#94a3b8" }} tickMargin={10} />
+              <YAxis domain={['dataMin - 0.5', 10]} tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={true} />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.8rem" }}
-                formatter={(v) => [`${v}`, "GPA"]}
+                contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: "0.8rem", padding: "8px 12px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)" }}
+                formatter={(v) => [`${v}`, "GPA Kỳ"]}
               />
-              <Area type="monotone" dataKey="gpa" stroke="#2563eb" strokeWidth={2.5} fill="url(#stdGpaGrad)" dot={{ r: 4, fill: "#2563eb" }} />
+              {cumulativeGPA > 0 && (
+                <ReferenceLine 
+                  y={cumulativeGPA} 
+                  stroke="#f59e0b" 
+                  strokeDasharray="4 4" 
+                  strokeWidth={1.5}
+                  label={{ position: 'insideBottomLeft', value: `Tích lũy: ${cumulativeGPA.toFixed(2)}`, fill: '#f59e0b', fontSize: 11, fontWeight: 700, offset: 10 }}
+                />
+              )}
+              <Area type="monotone" dataKey="gpa" stroke="#2563eb" strokeWidth={2.5} fill="url(#stdGpaGrad)" dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }}>
+                <LabelList dataKey="gpa" position="top" offset={10} style={{ fontSize: 11, fontWeight: 600, fill: "#1e293b" }} />
+              </Area>
             </AreaChart>
           </ResponsiveContainer>
         </div>

@@ -37,12 +37,13 @@ export function Attendance() {
       const uniqueClasses = [];
       const seen = new Set();
       ttData.forEach(item => {
-        if (!seen.has(item.sectionId)) {
-          seen.add(item.sectionId);
+        if (!seen.has(item.courseSectionId)) {
+          seen.add(item.courseSectionId);
           uniqueClasses.push({
-            id: item.sectionId,
-            code: item.sectionCode || item.courseCode,
+            id: item.courseSectionId,
+            code: item.courseSectionCode || item.courseCode,
             name: item.courseName,
+            semesterCode: item.semesterCode,
           });
         }
       });
@@ -60,38 +61,41 @@ export function Attendance() {
   const fetchAttendance = async (sectionId, dateStr) => {
     try {
       setLoadingAttendance(true);
-      const data = await lecturerService.getAttendance(sectionId, dateStr);
-      // data may be a session object with records array
-      const attendanceRecords = data?.records || data?.attendances || [];
-      const studentsFromRecords = attendanceRecords.map(r => ({
-        studentId: r.studentId,
-        studentCode: r.studentCode,
-        studentName: r.studentName,
+      const [rosterRes, attendanceRes] = await Promise.all([
+        lecturerService.getClassRoster(sectionId).catch(() => ({ students: [] })),
+        lecturerService.getAttendance(sectionId, dateStr).catch(() => ({ records: [] }))
+      ]);
+
+      const stuList = rosterRes?.students || [];
+      const attendanceRecords = attendanceRes?.records || attendanceRes?.attendances || [];
+
+      // Map students from roster
+      const studentsFromRoster = stuList.map(s => ({
+        studentId: s.studentId,
+        studentCode: s.studentCode,
+        studentName: s.fullName || s.studentName,
       }));
-      setStudents(studentsFromRecords);
-      
+      setStudents(studentsFromRoster);
+
+      // Merge attendance statuses
       const newRecords = {};
-      attendanceRecords.forEach(r => {
-        newRecords[r.studentId] = r.status || "PRESENT";
+      
+      // Default all to PRESENT
+      studentsFromRoster.forEach(s => {
+        newRecords[s.studentId] = "PRESENT";
       });
+
+      // Override with recorded statuses if they exist
+      attendanceRecords.forEach(r => {
+        if (r.studentId) {
+          newRecords[r.studentId] = r.status || "PRESENT";
+        }
+      });
+      
       setRecords(newRecords);
     } catch (error) {
-      // If 404 or no data, load roster instead
-      try {
-        const roster = await lecturerService.getClassRoster(sectionId);
-        const stuList = roster?.students || [];
-        setStudents(stuList.map(s => ({
-          studentId: s.studentId,
-          studentCode: s.studentCode,
-          studentName: s.studentName,
-        })));
-        const newRecords = {};
-        stuList.forEach(s => { newRecords[s.studentId] = "PRESENT"; });
-        setRecords(newRecords);
-      } catch (rosterErr) {
-        setStudents([]);
-        setRecords({});
-      }
+      setStudents([]);
+      setRecords({});
     } finally {
       setLoadingAttendance(false);
     }
@@ -113,7 +117,7 @@ export function Attendance() {
     try {
       setSubmitting(true);
       const attendanceData = {
-        date: date,
+        attendanceDate: date,
         records: students.map(s => ({
           studentId: s.studentId,
           status: records[s.studentId] || "PRESENT",
