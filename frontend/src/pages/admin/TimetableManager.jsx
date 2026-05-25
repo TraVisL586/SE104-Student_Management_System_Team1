@@ -72,21 +72,33 @@ const getSlotId = (startTime) => {
   return SLOTS.find((slot) => slot.start.slice(0, 5) === value)?.id || 1;
 };
 
+const getEndSlotId = (endTime) => {
+  const value = String(endTime || "07:50").slice(0, 5);
+  return SLOTS.find((slot) => slot.end.slice(0, 5) === value)?.id || 1;
+};
+
+const rangesOverlap = (aStart, aEnd, bStart, bEnd) => aStart <= bEnd && bStart <= aEnd;
+
 const compactName = (value, fallback = "N/A") => value || fallback;
 
 const buildScheduleEntry = (section, scheduleItem, index = 0) => {
   const colorIndex = index % COLORS.length;
+  const slot = getSlotId(scheduleItem.startTime);
+  const endSlot = Math.max(slot, getEndSlotId(scheduleItem.endTime));
   return {
     id: scheduleItem.id,
     sectionId: section.id,
     roomId: scheduleItem.roomId,
     day: (scheduleItem.dayOfWeek || 1) - 1,
-    slot: getSlotId(scheduleItem.startTime),
+    slot,
+    endSlot,
+    periodsPerSession: section.periodsPerSession || scheduleItem.periodsPerSession || Math.max(1, endSlot - slot + 1),
     code: section.code || section.courseCode || `SEC-${section.id}`,
     name: section.courseName || section.name || "Chưa đặt tên môn học",
     room: scheduleItem.roomCode || scheduleItem.roomName || "N/A",
     gv: section.lecturerName || section.lecturer || "Chưa phân công giảng viên",
     size: section.classSize || section.capacity || section.maxStudents || section.enrolledCount || "-",
+    time: `${String(scheduleItem.startTime || "").slice(0, 5)}-${String(scheduleItem.endTime || "").slice(0, 5)}`,
     color: COLORS[colorIndex],
     border: BORDERS[colorIndex],
   };
@@ -96,6 +108,24 @@ const buildSectionScheduleEntries = (section, startIndex = 0) =>
   (section.schedules || []).map((scheduleItem, index) =>
     buildScheduleEntry(section, scheduleItem, startIndex + index)
   );
+
+const renderContinuation = (entry) => (
+  <div
+    key={`${entry.id}-continuation`}
+    style={{
+      minHeight: 36,
+      padding: "7px 8px",
+      borderRadius: 8,
+      border: `1px dashed ${entry.border}`,
+      background: entry.color,
+      color: entry.border,
+      fontSize: "0.62rem",
+      fontWeight: 900,
+    }}
+  >
+    {entry.code} tiếp tục
+  </div>
+);
 
 export function TimetableManager() {
   const [schedule, setSchedule] = useState([]);
@@ -175,7 +205,7 @@ export function TimetableManager() {
         ["room", entry.room],
         ["lecturer", entry.gv],
       ].forEach(([type, value]) => {
-        const key = `${entry.day}-${entry.slot}-${type}-${value}`;
+        const key = `${entry.day}-${type}-${value}`;
         const current = groups.get(key) || [];
         current.push(entry);
         groups.set(key, current);
@@ -183,11 +213,13 @@ export function TimetableManager() {
     });
 
     groups.forEach((entries, key) => {
-      if (entries.length < 2) return;
-      const [, , type] = key.split("-");
-      entries.forEach((entry) => {
+      const [, type] = key.split("-");
+      entries.forEach((entry, index) => {
+        const other = entries.find((item, otherIndex) =>
+          otherIndex !== index && rangesOverlap(entry.slot, entry.endSlot, item.slot, item.endSlot)
+        );
+        if (!other) return;
         conflictIds.add(entry.id);
-        const other = entries.find((item) => item.id !== entry.id);
         details[entry.id] =
             type === "room"
                 ? `Phòng ${entry.room} bị trùng với ${other?.code || "lớp khác"}`
@@ -208,6 +240,7 @@ export function TimetableManager() {
                 name: section.courseName || section.name || "Chưa đặt tên môn học",
                 gv: section.lecturerName || section.lecturer || "Chưa phân công giảng viên",
                 size: section.classSize || section.capacity || section.maxStudents || "-",
+                periodsPerSession: section.periodsPerSession || 1,
                 faculty: section.departmentName || section.facultyName || "Khoa",
               })),
       [sections]
@@ -237,11 +270,11 @@ export function TimetableManager() {
   );
 
   function entriesForWeeklyCell(day, slot) {
-    return schedule.filter((entry) => entry.day === day && entry.slot === slot);
+    return schedule.filter((entry) => entry.day === day && entry.slot <= slot && entry.endSlot >= slot);
   }
 
   function entriesForResourceCell(resource, slot, field) {
-    return schedule.filter((entry) => entry[field] === resource && entry.slot === slot);
+    return schedule.filter((entry) => entry[field] === resource && entry.slot <= slot && entry.endSlot >= slot);
   }
 
   function openQuickAdd(day, slot, room = "") {
@@ -263,13 +296,41 @@ export function TimetableManager() {
     event.preventDefault();
     const day = Number(form.day);
     const slot = Number(form.slot);
-    const roomConflict = schedule.find((entry) => entry.day === day && entry.slot === slot && entry.roomId === Number(form.roomId));
+    const selectedSection = sections.find((section) => section.id === sectionId);
+    const duration = selectedSection?.periodsPerSession || 1;
+    const endSlot = slot + duration - 1;
+    if (endSlot > SLOTS.length) {
+      showToast("error", "Không đủ tiết", `Lớp này cần ${duration} tiết, không thể bắt đầu từ tiết ${slot}.`);
+      return;
+    }
+
+    const roomConflict = schedule.find((entry) =>
+      entry.day === day
+      && entry.roomId === Number(form.roomId)
+      && rangesOverlap(slot, endSlot, entry.slot, entry.endSlot)
+    );
+    const lecturerConflict = schedule.find((entry) =>
+      entry.day === day
+      && selectedSection
+      && entry.sectionId !== selectedSection.id
+      && entry.gv === (selectedSection.lecturerName || selectedSection.lecturer)
+      && rangesOverlap(slot, endSlot, entry.slot, entry.endSlot)
+    );
 
     if (roomConflict) {
       showToast(
           "error",
           "Trùng lịch",
           `Phòng ${roomConflict.room} bị trùng với ${roomConflict.code}. Vui lòng chọn phòng hoặc tiết học khác.`
+      );
+      return;
+    }
+
+    if (lecturerConflict) {
+      showToast(
+          "error",
+          "Trùng lịch",
+          `Giảng viên bị trùng với ${lecturerConflict.code}. Vui lòng chọn tiết học khác.`
       );
       return;
     }
@@ -383,8 +444,10 @@ export function TimetableManager() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
             {[
+              ["Giờ", entry.time],
               ["Phòng", entry.room],
               ["GV", entry.gv],
+              ["Số tiết", entry.periodsPerSession],
               ["Sĩ số", entry.size],
             ].map(([label, value]) => (
                 <span
@@ -483,7 +546,9 @@ export function TimetableManager() {
                 return (
                     <td key={dayIndex} style={{ minWidth: 132, padding: 6, verticalAlign: "top", borderTop: "1px solid #e2e8f0" }}>
                       <div style={{ display: "grid", gap: 5 }}>
-                        {entries.length ? entries.map((entry) => renderScheduleCard(entry, true)) : renderEmptyCell(dayIndex, slot.id)}
+                        {entries.length
+                          ? entries.map((entry) => entry.slot === slot.id ? renderScheduleCard(entry, true) : renderContinuation(entry))
+                          : renderEmptyCell(dayIndex, slot.id)}
                       </div>
                     </td>
                 );
@@ -524,7 +589,7 @@ export function TimetableManager() {
                     <td key={slot.id} style={{ minWidth: 168, padding: 6, verticalAlign: "top", borderTop: "1px solid #e2e8f0" }}>
                       <div style={{ display: "grid", gap: 5 }}>
                         {entries.length
-                            ? entries.map((entry) => renderScheduleCard(entry, true))
+                            ? entries.map((entry) => entry.slot === slot.id ? renderScheduleCard(entry, true) : renderContinuation(entry))
                             : renderEmptyCell(
                               0,
                               slot.id,
@@ -747,6 +812,7 @@ export function TimetableManager() {
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>
                                     <span style={pill}><UserRound size={10} /> {compactName(course.gv)}</span>
                                     <span style={pill}><UsersRound size={10} /> {course.size}</span>
+                                    <span style={pill}><Clock3 size={10} /> {course.periodsPerSession} tiết</span>
                                     <span style={pill}><Layers3 size={10} /> {course.faculty}</span>
                                   </div>
                                 </div>

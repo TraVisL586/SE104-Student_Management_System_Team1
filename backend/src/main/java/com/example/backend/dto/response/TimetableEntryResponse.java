@@ -21,6 +21,7 @@ public class TimetableEntryResponse {
     private String semesterName;
 
     private Integer enrolledCount;
+    private Integer periodsPerSession;
 
     private Integer lecturerId;
     private String lecturerCode;

@@ -44,7 +44,7 @@ public class CourseService {
 
     public List<CourseResponse> getAll() {
         return courseRepository.findAll().stream()
-                .map(course -> mapToResponse(course, false))
+                .map(course -> mapToResponse(course, true))
                 .toList();
     }
 

@@ -33,6 +33,9 @@ export function CurriculumMgmt() {
       setPrograms(safePrograms);
       setCourses(safeCourses);
       setSelectedProgramId((current) => current || String(safePrograms[0]?.id || ""));
+      setSelectedCourse((current) =>
+        current ? safeCourses.find((course) => course.id === current.id) || current : null
+      );
     } catch (error) {
       showToast("error", "Lỗi", error.message || "Không thể tải dữ liệu chương trình");
     } finally {
@@ -75,7 +78,8 @@ export function CurriculumMgmt() {
       await adminCatalogService.addCoursePrerequisite(selectedCourse.id, Number(prerequisiteId));
       showToast("success", "Thành công", "Đã thêm môn tiên quyết");
       await fetchData();
-      setSelectedCourse(null);
+      setPrerequisiteId("");
+      setPrerequisiteOpen(false);
     } catch (error) {
       showToast("error", "Lỗi", error.message || "Không thể thêm môn tiên quyết");
     } finally {
