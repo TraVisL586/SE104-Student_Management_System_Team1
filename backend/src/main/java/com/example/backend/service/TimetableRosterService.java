@@ -169,6 +169,9 @@ public class TimetableRosterService {
         response.setBuilding(schedule.getRoom().getBuilding());
 
         response.setDayOfWeek(schedule.getDayOfWeek());
+        response.setStartPeriod(schedule.getStartPeriod());
+        response.setEndPeriod(schedule.getEndPeriod());
+        response.setPeriodsPerSession(section.getPeriodsPerSession());
         response.setStartTime(schedule.getStartTime());
         response.setEndTime(schedule.getEndTime());
 

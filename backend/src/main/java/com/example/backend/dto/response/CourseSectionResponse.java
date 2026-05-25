@@ -17,6 +17,7 @@ public class CourseSectionResponse {
     private String courseCode;
     private String courseName;
     private Integer credits;
+    private Integer periodsPerSession;
 
     private Integer lecturerId;
     private String lecturerCode;

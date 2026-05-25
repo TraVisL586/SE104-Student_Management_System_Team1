@@ -28,6 +28,12 @@ public class CourseSectionSchedule {
     @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek;
 
+    @Column(name = "start_period", nullable = false)
+    private Integer startPeriod;
+
+    @Column(name = "end_period", nullable = false)
+    private Integer endPeriod;
+
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 

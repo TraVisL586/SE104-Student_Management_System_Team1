@@ -29,6 +29,9 @@ public class Course {
     @Column(nullable = false)
     private Integer credits;
 
+    @Column(name = "periods_per_session", nullable = false)
+    private Integer periodsPerSession = 1;
+
     @Column(length = 500)
     private String description;
 

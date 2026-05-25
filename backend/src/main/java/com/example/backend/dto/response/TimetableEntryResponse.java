@@ -30,6 +30,9 @@ public class TimetableEntryResponse {
     private String building;
 
     private Integer dayOfWeek;
+    private Integer startPeriod;
+    private Integer endPeriod;
+    private Integer periodsPerSession;
     private LocalTime startTime;
     private LocalTime endTime;
 }

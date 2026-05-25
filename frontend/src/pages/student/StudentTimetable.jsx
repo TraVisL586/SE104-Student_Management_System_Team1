@@ -5,10 +5,16 @@ import timetableService from "../../services/timetableService";
 
 const DAYS   = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 const SLOTS  = [
-  { id: 1, label: "Tiết 1-3",  time: "07:30 – 09:45" },
-  { id: 2, label: "Tiết 4-6",  time: "10:00 – 12:15" },
-  { id: 3, label: "Tiết 7-9",  time: "13:00 – 15:15" },
-  { id: 4, label: "Tiết 10-12",time: "15:30 – 17:45" },
+  { id: 1, label: "Tiết 1", time: "07:00-07:50" },
+  { id: 2, label: "Tiết 2", time: "07:55-08:45" },
+  { id: 3, label: "Tiết 3", time: "08:50-09:40" },
+  { id: 4, label: "Tiết 4", time: "09:50-10:40" },
+  { id: 5, label: "Tiết 5", time: "10:45-11:35" },
+  { id: 6, label: "Tiết 6", time: "13:00-13:50" },
+  { id: 7, label: "Tiết 7", time: "13:55-14:45" },
+  { id: 8, label: "Tiết 8", time: "14:50-15:40" },
+  { id: 9, label: "Tiết 9", time: "15:50-16:40" },
+  { id: 10, label: "Tiết 10", time: "16:45-17:35" },
 ];
 
 // Calculate current week from today's date
@@ -54,12 +60,21 @@ export function StudentTimetable() {
       const formatted = (Array.isArray(data) ? data : []).map((sch) => {
         let day = (sch.dayOfWeek || 1) - 1;
         
-        let slot = 1;
+        let slot = sch.startPeriod || 1;
         const startTimeStr = String(sch.startTime || "07:30");
-        if (startTimeStr.startsWith("07")) slot = 1;
-        else if (startTimeStr.startsWith("10")) slot = 2;
-        else if (startTimeStr.startsWith("13")) slot = 3;
-        else if (startTimeStr.startsWith("15")) slot = 4;
+        if (!sch.startPeriod) {
+          if (startTimeStr.startsWith("07:00")) slot = 1;
+          else if (startTimeStr.startsWith("07:55")) slot = 2;
+          else if (startTimeStr.startsWith("08")) slot = 3;
+          else if (startTimeStr.startsWith("09")) slot = 4;
+          else if (startTimeStr.startsWith("10")) slot = 5;
+          else if (startTimeStr.startsWith("13")) slot = 6;
+          else if (startTimeStr.startsWith("14")) slot = 7;
+          else if (startTimeStr.startsWith("15:5")) slot = 9;
+          else if (startTimeStr.startsWith("15")) slot = 8;
+          else if (startTimeStr.startsWith("16")) slot = 10;
+        }
+        const endSlot = sch.endPeriod || slot;
         
         const nameLower = String(sch.courseName || "").toLowerCase();
         const codeLower = String(sch.courseCode || "").toLowerCase();
@@ -82,6 +97,9 @@ export function StudentTimetable() {
           ...sch,
           day,
           slot,
+          startSlot: slot,
+          endSlot,
+          periodsPerSession: sch.periodsPerSession || Math.max(1, endSlot - slot + 1),
           code: sch.courseCode || sch.courseSectionCode,
           name: sch.courseName,
           room: sch.roomCode || sch.roomName || "N/A",
@@ -102,13 +120,13 @@ export function StudentTimetable() {
   }, [showToast]);
 
   function getCell(day, slot) {
-    return schedule.find((s) => s.day === day && s.slot === slot);
+    return schedule.find((s) => s.day === day && s.startSlot <= slot && s.endSlot >= slot);
   }
 
   // Calculate summary stats
   const summaryStats = {
     courses: new Set(schedule.map(s => s.code || s.courseCode)).size,
-    totalSlots: schedule.length,
+    totalSlots: schedule.reduce((sum, s) => sum + (s.periodsPerSession || 1), 0),
     totalCredits: schedule.reduce((sum, s) => sum + (s.credits || 0), 0),
     labSessions: schedule.filter(s => s.type === 'lab' || s.type === 'LAB').length,
   };
@@ -199,6 +217,9 @@ export function StudentTimetable() {
                               <Calendar size={10} color="#94a3b8" />
                               <p style={{ fontSize: "0.65rem", color: "#64748b" }}>{cell.room}</p>
                             </div>
+                            <p style={{ fontSize: "0.62rem", color: "#64748b", marginTop: 4 }}>
+                              Tiết {cell.startSlot}-{cell.endSlot}
+                            </p>
                           </div>
                         ) : (
                           <div style={{ height: 60 }} />
@@ -217,7 +238,7 @@ export function StudentTimetable() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Môn học",       value: `${summaryStats.courses} môn`, color: "#2563eb" },
-          { label: "Tiết/tuần",     value: `${summaryStats.totalSlots * 3} tiết`, color: "#8b5cf6" },
+          { label: "Tiết/tuần",     value: `${summaryStats.totalSlots} tiết`, color: "#8b5cf6" },
           { label: "Tín chỉ HK",    value: `${summaryStats.totalCredits} TC`,   color: "#10b981" },
           { label: "Phòng Lab",     value: `${summaryStats.labSessions} buổi`,  color: "#f59e0b" },
         ].map(({ label, value, color }) => (

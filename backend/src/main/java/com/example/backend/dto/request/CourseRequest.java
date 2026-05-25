@@ -25,6 +25,10 @@ public class CourseRequest {
     @Min(value = 1, message = "Credits must be at least 1")
     private Integer credits;
 
+    @NotNull(message = "Periods per session is required")
+    @Min(value = 1, message = "Periods per session must be at least 1")
+    private Integer periodsPerSession;
+
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 

@@ -222,6 +222,9 @@ public class CourseRegistrationService {
 
     private void validateScheduleConflict(Student student, CourseSection newSection) {
         List<CourseSectionSchedule> newSchedules = scheduleRepository.findByCourseSectionId(newSection.getId());
+        if (newSchedules.isEmpty()) {
+            throw new RuntimeException("Course section has no schedule");
+        }
 
         List<Enrollment> currentEnrollments = enrollmentRepository
                 .findByStudentIdAndCourseSectionSemesterIdAndStatus(
@@ -237,8 +240,8 @@ public class CourseRegistrationService {
             for (CourseSectionSchedule existing : existingSchedules) {
                 for (CourseSectionSchedule incoming : newSchedules) {
                     boolean sameDay = existing.getDayOfWeek().equals(incoming.getDayOfWeek());
-                    boolean overlap = existing.getStartTime().isBefore(incoming.getEndTime())
-                            && existing.getEndTime().isAfter(incoming.getStartTime());
+                    boolean overlap = existing.getStartPeriod() <= incoming.getEndPeriod()
+                            && existing.getEndPeriod() >= incoming.getStartPeriod();
 
                     if (sameDay && overlap) {
                         throw new RuntimeException("Course section schedule conflicts with existing registration");
