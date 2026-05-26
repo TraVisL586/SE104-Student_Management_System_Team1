@@ -36,6 +36,9 @@ public class CourseSection {
     @Column(nullable = false)
     private Integer capacity;
 
+    @Column(name = "periods_per_session", nullable = false)
+    private Integer periodsPerSession = 1;
+
     @Column(name = "enrolled_count", nullable = false)
     private Integer enrolledCount = 0;
 

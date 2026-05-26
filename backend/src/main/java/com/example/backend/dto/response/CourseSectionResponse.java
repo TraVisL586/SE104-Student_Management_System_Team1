@@ -27,6 +27,7 @@ public class CourseSectionResponse {
     private String semesterName;
 
     private Integer capacity;
+    private Integer periodsPerSession;
     private Integer enrolledCount;
     private Integer availableSeats;
     private CourseSectionStatus status;

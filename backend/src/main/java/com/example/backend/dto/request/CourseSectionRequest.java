@@ -1,6 +1,7 @@
 package com.example.backend.dto.request;
 
 import com.example.backend.constant.CourseSectionStatus;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,6 +29,11 @@ public class CourseSectionRequest {
     @NotNull(message = "Capacity is required")
     @Min(value = 1, message = "Capacity must be at least 1")
     private Integer capacity;
+
+    @NotNull(message = "Periods per session is required")
+    @Min(value = 1, message = "Periods per session must be at least 1")
+    @Max(value = 10, message = "Periods per session must not exceed 10")
+    private Integer periodsPerSession;
 
     private CourseSectionStatus status;
 }

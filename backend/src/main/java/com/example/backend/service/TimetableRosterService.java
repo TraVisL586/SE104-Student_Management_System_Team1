@@ -161,6 +161,7 @@ public class TimetableRosterService {
         response.setSemesterName(section.getSemester().getName());
 
         response.setEnrolledCount(section.getEnrolledCount());
+        response.setPeriodsPerSession(section.getPeriodsPerSession());
 
         response.setLecturerId(section.getLecturer().getId());
         response.setLecturerCode(section.getLecturer().getLecturerCode());

@@ -17,6 +17,34 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CourseSectionService {
+    private static final LocalTime[] PERIOD_START_TIMES = {
+            null,
+            LocalTime.of(7, 0),
+            LocalTime.of(7, 55),
+            LocalTime.of(8, 50),
+            LocalTime.of(9, 50),
+            LocalTime.of(10, 45),
+            LocalTime.of(13, 0),
+            LocalTime.of(13, 55),
+            LocalTime.of(14, 50),
+            LocalTime.of(15, 50),
+            LocalTime.of(16, 45)
+    };
+
+    private static final LocalTime[] PERIOD_END_TIMES = {
+            null,
+            LocalTime.of(7, 50),
+            LocalTime.of(8, 45),
+            LocalTime.of(9, 40),
+            LocalTime.of(10, 40),
+            LocalTime.of(11, 35),
+            LocalTime.of(13, 50),
+            LocalTime.of(14, 45),
+            LocalTime.of(15, 40),
+            LocalTime.of(16, 40),
+            LocalTime.of(17, 35)
+    };
+
     private final CourseSectionRepository courseSectionRepository;
     private final CourseSectionScheduleRepository scheduleRepository;
     private final CourseRepository courseRepository;
@@ -89,8 +117,10 @@ public class CourseSectionService {
     public CourseSectionResponse addSchedule(Integer sectionId, CourseSectionScheduleRequest request) {
         CourseSection section = findSection(sectionId);
         Room room = findRoom(request.getRoomId());
+        LocalTime startTime = normalizeStartTime(request.getStartTime());
+        LocalTime endTime = calculateEndTime(startTime, section.getPeriodsPerSession());
 
-        validateScheduleTime(request.getStartTime(), request.getEndTime());
+        validateScheduleTime(startTime, endTime);
 
         if (Boolean.FALSE.equals(room.getIsActive())) {
             throw new RuntimeException("Room is inactive");
@@ -100,15 +130,15 @@ public class CourseSectionService {
             throw new RuntimeException("Room capacity is less than course section capacity");
         }
 
-        validateNoRoomConflict(room.getId(), request);
-        validateNoLecturerConflict(section.getLecturer().getId(), request);
+        validateNoRoomConflict(room.getId(), request.getDayOfWeek(), startTime, endTime);
+        validateNoLecturerConflict(section.getLecturer().getId(), request.getDayOfWeek(), startTime, endTime);
 
         CourseSectionSchedule schedule = new CourseSectionSchedule();
         schedule.setCourseSection(section);
         schedule.setRoom(room);
         schedule.setDayOfWeek(request.getDayOfWeek());
-        schedule.setStartTime(request.getStartTime());
-        schedule.setEndTime(request.getEndTime());
+        schedule.setStartTime(startTime);
+        schedule.setEndTime(endTime);
         scheduleRepository.save(schedule);
 
         return mapToResponse(section, true);
@@ -146,20 +176,28 @@ public class CourseSectionService {
     }
 
     private void applyRequest(CourseSection section, CourseSectionRequest request) {
+        Integer requestedPeriods = request.getPeriodsPerSession() != null ? request.getPeriodsPerSession() : 1;
+        if (section.getId() != null
+                && !requestedPeriods.equals(section.getPeriodsPerSession())
+                && !scheduleRepository.findByCourseSectionId(section.getId()).isEmpty()) {
+            throw new RuntimeException("Cannot change periods per session after schedules have been assigned");
+        }
+
         section.setCode(request.getCode());
         section.setCourse(findCourse(request.getCourseId()));
         section.setLecturer(findLecturer(request.getLecturerId()));
         section.setSemester(findSemester(request.getSemesterId()));
         section.setCapacity(request.getCapacity());
+        section.setPeriodsPerSession(requestedPeriods);
         section.setStatus(request.getStatus() != null ? request.getStatus() : CourseSectionStatus.DRAFT);
     }
 
-    private void validateNoRoomConflict(Integer roomId, CourseSectionScheduleRequest request) {
+    private void validateNoRoomConflict(Integer roomId, Integer dayOfWeek, LocalTime startTime, LocalTime endTime) {
         boolean exists = scheduleRepository.existsByRoomIdAndDayOfWeekAndStartTimeLessThanAndEndTimeGreaterThan(
                 roomId,
-                request.getDayOfWeek(),
-                request.getEndTime(),
-                request.getStartTime()
+                dayOfWeek,
+                endTime,
+                startTime
         );
 
         if (exists) {
@@ -167,12 +205,12 @@ public class CourseSectionService {
         }
     }
 
-    private void validateNoLecturerConflict(Integer lecturerId, CourseSectionScheduleRequest request) {
+    private void validateNoLecturerConflict(Integer lecturerId, Integer dayOfWeek, LocalTime startTime, LocalTime endTime) {
         boolean exists = scheduleRepository.existsByCourseSectionLecturerIdAndDayOfWeekAndStartTimeLessThanAndEndTimeGreaterThan(
                 lecturerId,
-                request.getDayOfWeek(),
-                request.getEndTime(),
-                request.getStartTime()
+                dayOfWeek,
+                endTime,
+                startTime
         );
 
         if (exists) {
@@ -184,6 +222,34 @@ public class CourseSectionService {
         if (!startTime.isBefore(endTime)) {
             throw new RuntimeException("Schedule start time must be before end time");
         }
+    }
+
+    private LocalTime normalizeStartTime(LocalTime startTime) {
+        for (int period = 1; period < PERIOD_START_TIMES.length; period++) {
+            if (PERIOD_START_TIMES[period].equals(startTime)) {
+                return PERIOD_START_TIMES[period];
+            }
+        }
+
+        throw new RuntimeException("Start time must match a valid period");
+    }
+
+    private LocalTime calculateEndTime(LocalTime startTime, Integer periodsPerSession) {
+        int startPeriod = 0;
+        for (int period = 1; period < PERIOD_START_TIMES.length; period++) {
+            if (PERIOD_START_TIMES[period].equals(startTime)) {
+                startPeriod = period;
+                break;
+            }
+        }
+
+        int duration = periodsPerSession != null ? periodsPerSession : 1;
+        int endPeriod = startPeriod + duration - 1;
+        if (startPeriod == 0 || endPeriod >= PERIOD_END_TIMES.length) {
+            throw new RuntimeException("Course section duration exceeds available periods for the selected start period");
+        }
+
+        return PERIOD_END_TIMES[endPeriod];
     }
 
     private CourseSection findSection(Integer id) {
@@ -230,6 +296,7 @@ public class CourseSectionService {
         response.setSemesterName(section.getSemester().getName());
 
         response.setCapacity(section.getCapacity());
+        response.setPeriodsPerSession(section.getPeriodsPerSession());
         response.setEnrolledCount(section.getEnrolledCount());
         response.setAvailableSeats(section.getCapacity() - section.getEnrolledCount());
         response.setStatus(section.getStatus());
@@ -254,6 +321,7 @@ public class CourseSectionService {
         response.setDayOfWeek(schedule.getDayOfWeek());
         response.setStartTime(schedule.getStartTime());
         response.setEndTime(schedule.getEndTime());
+        response.setPeriodsPerSession(schedule.getCourseSection().getPeriodsPerSession());
         return response;
     }
 }
