@@ -32,6 +32,9 @@ public class Course {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "periods_per_session", nullable = false)
+    private Integer periodsPerSession = 1;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

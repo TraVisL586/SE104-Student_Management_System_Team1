@@ -117,8 +117,15 @@ public class CourseSectionService {
     public CourseSectionResponse addSchedule(Integer sectionId, CourseSectionScheduleRequest request) {
         CourseSection section = findSection(sectionId);
         Room room = findRoom(request.getRoomId());
-        LocalTime startTime = normalizeStartTime(request.getStartTime());
-        LocalTime endTime = calculateEndTime(startTime, section.getPeriodsPerSession());
+        int startPeriod = resolveStartPeriod(request);
+        int endPeriod = calculateEndPeriod(startPeriod, section.getPeriodsPerSession());
+
+        if (request.getEndPeriod() != null && !request.getEndPeriod().equals(endPeriod)) {
+            throw new RuntimeException("End period must match course section duration");
+        }
+
+        LocalTime startTime = PERIOD_START_TIMES[startPeriod];
+        LocalTime endTime = PERIOD_END_TIMES[endPeriod];
 
         validateScheduleTime(startTime, endTime);
 
@@ -139,6 +146,8 @@ public class CourseSectionService {
         schedule.setDayOfWeek(request.getDayOfWeek());
         schedule.setStartTime(startTime);
         schedule.setEndTime(endTime);
+        schedule.setStartPeriod(startPeriod);
+        schedule.setEndPeriod(endPeriod);
         scheduleRepository.save(schedule);
 
         return mapToResponse(section, true);
@@ -224,32 +233,32 @@ public class CourseSectionService {
         }
     }
 
-    private LocalTime normalizeStartTime(LocalTime startTime) {
+    private int resolveStartPeriod(CourseSectionScheduleRequest request) {
+        if (request.getStartPeriod() != null) {
+            return request.getStartPeriod();
+        }
+
+        if (request.getStartTime() == null) {
+            throw new RuntimeException("Start period or start time is required");
+        }
+
         for (int period = 1; period < PERIOD_START_TIMES.length; period++) {
-            if (PERIOD_START_TIMES[period].equals(startTime)) {
-                return PERIOD_START_TIMES[period];
+            if (PERIOD_START_TIMES[period].equals(request.getStartTime())) {
+                return period;
             }
         }
 
         throw new RuntimeException("Start time must match a valid period");
     }
 
-    private LocalTime calculateEndTime(LocalTime startTime, Integer periodsPerSession) {
-        int startPeriod = 0;
-        for (int period = 1; period < PERIOD_START_TIMES.length; period++) {
-            if (PERIOD_START_TIMES[period].equals(startTime)) {
-                startPeriod = period;
-                break;
-            }
-        }
-
+    private int calculateEndPeriod(int startPeriod, Integer periodsPerSession) {
         int duration = periodsPerSession != null ? periodsPerSession : 1;
         int endPeriod = startPeriod + duration - 1;
         if (startPeriod == 0 || endPeriod >= PERIOD_END_TIMES.length) {
             throw new RuntimeException("Course section duration exceeds available periods for the selected start period");
         }
 
-        return PERIOD_END_TIMES[endPeriod];
+        return endPeriod;
     }
 
     private CourseSection findSection(Integer id) {
@@ -321,6 +330,8 @@ public class CourseSectionService {
         response.setDayOfWeek(schedule.getDayOfWeek());
         response.setStartTime(schedule.getStartTime());
         response.setEndTime(schedule.getEndTime());
+        response.setStartPeriod(schedule.getStartPeriod());
+        response.setEndPeriod(schedule.getEndPeriod());
         response.setPeriodsPerSession(schedule.getCourseSection().getPeriodsPerSession());
         return response;
     }

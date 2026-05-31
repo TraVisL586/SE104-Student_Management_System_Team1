@@ -175,6 +175,8 @@ public class TimetableRosterService {
         response.setDayOfWeek(schedule.getDayOfWeek());
         response.setStartTime(schedule.getStartTime());
         response.setEndTime(schedule.getEndTime());
+        response.setStartPeriod(schedule.getStartPeriod());
+        response.setEndPeriod(schedule.getEndPeriod());
 
         return response;
     }
@@ -213,6 +215,10 @@ public class TimetableRosterService {
         response.setFullName(student.getFullName());
         response.setEmail(student.getEmail());
         response.setPhone(student.getPhone());
+        response.setDepartment(student.getDepartment());
+        response.setProgramCode(student.getProgramCode());
+        response.setAddress(student.getAddress());
+        response.setEnrollmentYear(student.getEnrollmentYear());
         response.setEnrollmentStatus(enrollment.getStatus());
 
         return response;

@@ -16,5 +16,7 @@ public class CourseSectionScheduleResponse {
     private Integer dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;
+    private Integer startPeriod;
+    private Integer endPeriod;
     private Integer periodsPerSession;
 }

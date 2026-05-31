@@ -23,5 +23,9 @@ public class StudentRequest {
     private String studentCode;
     private String phone;
     private LocalDate dateOfBirth;
+    private String department;
+    private String programCode;
+    private String address;
+    private Integer enrollmentYear;
     private Boolean isActive;
 }

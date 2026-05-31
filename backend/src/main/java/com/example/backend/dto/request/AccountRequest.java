@@ -26,5 +26,8 @@ public class AccountRequest {
     private String profileCode;
     private String phone;
     private String department;
+    private String programCode;
+    private String address;
+    private Integer enrollmentYear;
     private LocalDate dateOfBirth;
 }

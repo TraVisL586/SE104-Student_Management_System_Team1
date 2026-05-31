@@ -183,6 +183,10 @@ public class AcademicAdvisingService {
         response.setFullName(student.getFullName());
         response.setEmail(student.getEmail());
         response.setPhone(student.getPhone());
+        response.setDepartment(student.getDepartment());
+        response.setProgramCode(student.getProgramCode());
+        response.setAddress(student.getAddress());
+        response.setEnrollmentYear(student.getEnrollmentYear());
         response.setAcademicStatus(student.getAcademicStatus());
         response.setPassedCredits(passedCredits);
         response.setFailedCourses(failedCourses);
@@ -264,6 +268,10 @@ public class AcademicAdvisingService {
         response.setFullName(student.getFullName());
         response.setEmail(student.getEmail());
         response.setPhone(student.getPhone());
+        response.setDepartment(student.getDepartment());
+        response.setProgramCode(student.getProgramCode());
+        response.setAddress(student.getAddress());
+        response.setEnrollmentYear(student.getEnrollmentYear());
         response.setAcademicStatus(student.getAcademicStatus());
         response.setAssignedAt(advisorStudent.getAssignedAt());
         return response;

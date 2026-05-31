@@ -35,4 +35,6 @@ public class TimetableEntryResponse {
     private Integer dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;
+    private Integer startPeriod;
+    private Integer endPeriod;
 }

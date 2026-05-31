@@ -21,6 +21,9 @@ public class AccountResponse {
     private String profileCode;
     private String phone;
     private String department;
+    private String programCode;
+    private String address;
+    private Integer enrollmentYear;
 
     private LocalDateTime createdAt;
 }
