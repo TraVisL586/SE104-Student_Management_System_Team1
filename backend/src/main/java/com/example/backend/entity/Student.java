@@ -33,6 +33,17 @@ public class Student {
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
+    private String department;
+
+    @Column(name = "program_code", length = 100)
+    private String programCode;
+
+    @Column(length = 500)
+    private String address;
+
+    @Column(name = "enrollment_year")
+    private Integer enrollmentYear;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

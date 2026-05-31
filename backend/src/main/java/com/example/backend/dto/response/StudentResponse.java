@@ -16,6 +16,10 @@ public class StudentResponse {
     private String email;
     private String phone;
     private LocalDate dateOfBirth;
+    private String department;
+    private String programCode;
+    private String address;
+    private Integer enrollmentYear;
     private StudentAcademicStatus academicStatus;
     private LocalDateTime createdAt;
 

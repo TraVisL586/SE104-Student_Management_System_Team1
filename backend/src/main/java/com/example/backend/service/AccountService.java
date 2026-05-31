@@ -133,6 +133,10 @@ public class AccountService {
             student.setEmail(request.getEmail());
             student.setPhone(request.getPhone());
             student.setDateOfBirth(request.getDateOfBirth());
+            student.setDepartment(request.getDepartment());
+            student.setProgramCode(request.getProgramCode());
+            student.setAddress(request.getAddress());
+            student.setEnrollmentYear(request.getEnrollmentYear());
             studentRepository.save(student);
             return;
         }
@@ -178,6 +182,10 @@ public class AccountService {
             response.setProfileType("STUDENT");
             response.setProfileCode(student.getStudentCode());
             response.setPhone(student.getPhone());
+            response.setDepartment(student.getDepartment());
+            response.setProgramCode(student.getProgramCode());
+            response.setAddress(student.getAddress());
+            response.setEnrollmentYear(student.getEnrollmentYear());
         });
 
         lecturerRepository.findByUserId(user.getId()).ifPresent(lecturer -> {

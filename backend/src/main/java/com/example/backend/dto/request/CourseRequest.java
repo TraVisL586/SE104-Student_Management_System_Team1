@@ -1,6 +1,7 @@
 package com.example.backend.dto.request;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -27,6 +28,10 @@ public class CourseRequest {
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
+
+    @Min(value = 1, message = "Periods per session must be at least 1")
+    @Max(value = 10, message = "Periods per session must not exceed 10")
+    private Integer periodsPerSession;
 
     private Boolean isActive;
 }

@@ -36,6 +36,7 @@ public class CourseService {
         course.setName(request.getName());
         course.setCredits(request.getCredits());
         course.setDescription(request.getDescription());
+        course.setPeriodsPerSession(request.getPeriodsPerSession() != null ? request.getPeriodsPerSession() : 1);
         course.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
         courseRepository.save(course);
 
@@ -68,6 +69,9 @@ public class CourseService {
         course.setName(request.getName());
         course.setCredits(request.getCredits());
         course.setDescription(request.getDescription());
+        if (request.getPeriodsPerSession() != null) {
+            course.setPeriodsPerSession(request.getPeriodsPerSession());
+        }
         if (request.getIsActive() != null) {
             course.setIsActive(request.getIsActive());
         }
@@ -133,6 +137,7 @@ public class CourseService {
         response.setName(course.getName());
         response.setCredits(course.getCredits());
         response.setDescription(course.getDescription());
+        response.setPeriodsPerSession(course.getPeriodsPerSession());
         response.setIsActive(course.getIsActive());
         response.setCreatedAt(course.getCreatedAt());
 

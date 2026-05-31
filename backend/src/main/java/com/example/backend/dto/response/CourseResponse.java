@@ -14,6 +14,7 @@ public class CourseResponse {
     private String name;
     private Integer credits;
     private String description;
+    private Integer periodsPerSession;
     private Boolean isActive;
     private Integer departmentId;
     private String departmentCode;

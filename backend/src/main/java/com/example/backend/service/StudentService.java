@@ -68,6 +68,10 @@ public class StudentService {
         student.setEmail(request.getEmail());
         student.setPhone(request.getPhone());
         student.setDateOfBirth(request.getDateOfBirth());
+        student.setDepartment(request.getDepartment());
+        student.setProgramCode(request.getProgramCode());
+        student.setAddress(request.getAddress());
+        student.setEnrollmentYear(request.getEnrollmentYear());
         student.setAcademicStatus(StudentAcademicStatus.STUDYING);
         studentRepository.save(student);
 
@@ -116,6 +120,10 @@ public class StudentService {
         student.setEmail(request.getEmail());
         student.setPhone(request.getPhone());
         student.setDateOfBirth(request.getDateOfBirth());
+        student.setDepartment(request.getDepartment());
+        student.setProgramCode(request.getProgramCode());
+        student.setAddress(request.getAddress());
+        student.setEnrollmentYear(request.getEnrollmentYear());
 
         user.setFullName(request.getFullName());
         user.setEmail(request.getEmail());
@@ -182,6 +190,10 @@ public class StudentService {
         response.setEmail(student.getEmail());
         response.setPhone(student.getPhone());
         response.setDateOfBirth(student.getDateOfBirth());
+        response.setDepartment(student.getDepartment());
+        response.setProgramCode(student.getProgramCode());
+        response.setAddress(student.getAddress());
+        response.setEnrollmentYear(student.getEnrollmentYear());
         response.setCreatedAt(student.getCreatedAt());
         response.setAcademicStatus(student.getAcademicStatus());
 

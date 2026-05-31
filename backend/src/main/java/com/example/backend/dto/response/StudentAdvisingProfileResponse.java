@@ -15,6 +15,10 @@ public class StudentAdvisingProfileResponse {
     private String fullName;
     private String email;
     private String phone;
+    private String department;
+    private String programCode;
+    private String address;
+    private Integer enrollmentYear;
     private StudentAcademicStatus academicStatus;
 
     private Integer passedCredits;

@@ -33,4 +33,10 @@ public class CourseSectionSchedule {
 
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
+
+    @Column(name = "start_period", nullable = false)
+    private Integer startPeriod;
+
+    @Column(name = "end_period", nullable = false)
+    private Integer endPeriod;
 }
